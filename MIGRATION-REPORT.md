@@ -23,12 +23,31 @@ Date: 2026-11-09 02:21 +07. Source: `https://hn.dh6k.vip` (publication `61ed6370
 - Giscus: `src/components/Comments.astro` — renders nothing until `PUBLIC_GISCUS_REPO/REPO_ID/CATEGORY_ID` are set (needs real repo + Discussions). See `.env.example`.
 - Newsletter: `src/components/Newsletter.astro` — Buttondown form, username defaults to `dh6k`, change in `.env` (`PUBLIC_BUTTONDOWN_USERNAME`).
 
-## NOT done yet — needs user
-- GitHub repo name + push. Local project is NOT committed/pushed yet (per standing rule: user reviews/commits himself unless he explicitly says push).
-- Vercel import + deploy (needs repo).
-- Giscus IDs (needs repo + Discussions enabled).
+## GitHub — DONE 2026-11-09 02:27
+- Repo: https://github.com/dh6k/dh6k-blog (public, branch `main`).
+- Commits: `6b254c6` feat migrate + `22be960` Giscus General fix. Author `dh6k` noreply, no AI credit.
+- Discussions enabled. Giscus: repo `dh6k/dh6k-blog`, repoId `R_kgDOVnZMNg`, category **General** `DIC_kwDOVnZMNs4DKrfA` — GitHub has no API to create a discussion category (REST + GraphQL both 404/undefined field), so "Comments" could not be created programmatically; General is the fallback. Env vars in `.env.example` match these values.
+
+## Vercel — DEPLOYED LIVE 2026-11-09 02:39
+- Connector `connected` 02:34, team `dh6k's projects` (`team_FZqq9pZP5QcaatuUgfkWPq2E`, Hobby), user `dh6k` / `duya-sensei@dh6k.vip`.
+- First `create_git_project` failed 400 `repo_not_found` — GitHub App lacked access to the new repo; user granted it in GitHub Settings → Applications → Vercel → Configure (02:39), `search_repo` then found `dh6k-blog` (id 1450593334).
+- Project `dh6k-blog` (`prj_8amogBxHlHkCBAljKeOFkSmqs6D3`), linked to `dh6k/dh6k-blog`, production branch `main`.
+- Env vars set (production + preview): `PUBLIC_GISCUS_REPO`, `PUBLIC_GISCUS_REPO_ID`, `PUBLIC_GISCUS_CATEGORY_ID`, `PUBLIC_BUTTONDOWN_USERNAME` (= `dh6k`, unverified).
+- First production deploy `dpl_9EcvGC7mgZtsGBg8p5BEosSu2Uce` READY from `22be960`. Note: env vars were added after that build started, so a redeploy (`dpl_45dJ...`, READY, target null) + `request_promote` (422, failed) did not put env vars into production. Fix that worked: commit `612c42e` (site URL → `https://dh6k-blog.vercel.app`) pushed → auto production deploy `dpl_BtY8G9NqFsgEenmSre8uU3mU92Fc` READY.
+- **Live: https://dh6k-blog.vercel.app/** — verified 02:41: homepage lists 11 posts + newsletter form; BA gacha post renders full content + 6 `_astro/*.webp` images; Giscus `client.js` with correct `data-repo`/`data-repo-id`/`data-category-id` present in live HTML; RSS 11 items, sitemap OK.
+- `astro.config.mjs` site now `https://dh6k-blog.vercel.app` (change when custom domain is decided).
 - Buttondown username confirm (defaults to `dh6k`, unverified).
-- Custom domain — explicitly deferred by user, ask when it comes up.
+
+## Custom domain — DONE 2026-11-09 03:03
+- User chose `blog.dh6k.vip` (was CNAME → `ghs.google.com`, proxied, since 2026-07-14).
+- Cloudflare connector `custom.cloudflare` (OAuth2 + DCR, MCP `https://mcp.cloudflare.com/mcp`) connected 02:48; `whoami` = `duyanhhoangquoc@gmail.com`; zone `dh6k.vip` (`069c2f3112b2ff7071e38d546e6b2740`, active). First `list-tools` failed 403 Error 1010 — urllib's default User-Agent banned by WAF; fixed with a browser User-Agent header in `client.py`.
+- Added `blog.dh6k.vip` to Vercel project (02:51); Vercel asked for TXT `_vercel.dh6k.vip` = `vc-domain-verify=blog.dh6k.vip,d4786f1dc9eea1e98849`.
+- DNS via Cloudflare API: CNAME `blog.dh6k.vip` → `cname.vercel-dns.com` (DNS-only, record `0aa74a0b...`), TXT `_vercel.dh6k.vip` added. Both confirmed propagated via DoH (1.1.1.1).
+- Commit `02b4bfe` changed `site` to `https://blog.dh6k.vip` → auto production deploy `dpl_Ezs43JyH8UDTSqfZWs2JoeCwaeyi` READY.
+- Vercel stayed `verified: false` ~10 min after DNS went live, curl returned empty reply. Fix: dashboard Refresh (browser, signed in via GitHub dh6k) at 03:02 — status moved to "DNS Change Recommended", and Vercel recommended the new CNAME value `27f95937afd5f18f.vercel-dns-017.com` (IP-range expansion; legacy `cname.vercel-dns.com` still works).
+- CNAME updated to `27f95937afd5f18f.vercel-dns-017.com` (DNS-only) 03:03; DoH confirms propagation; Vercel now reports `blog.dh6k.vip` **verified: true**.
+- **Live: https://blog.dh6k.vip/** — verified 03:03: homepage HTTP 200, title "dh6k's blog", Odysseus post linked; post page HTTP 200. `hn.dh6k.vip` still points to Hashnode (untouched, no redirect set up).
+- `astro.config.mjs` site now `https://blog.dh6k.vip`.
 
 ## How to run locally
 ```bash
