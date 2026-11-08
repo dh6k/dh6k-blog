@@ -1,9 +1,11 @@
 ---
-// Giscus (GitHub Discussions) — fill in repo IDs after the repo is created
-// at https://giscus.app. Until then this renders nothing.
-const repo = import.meta.env.PUBLIC_GISCUS_REPO || '';
-const repoId = import.meta.env.PUBLIC_GISCUS_REPO_ID || '';
-const categoryId = import.meta.env.PUBLIC_GISCUS_CATEGORY_ID || '';
+// Giscus (GitHub Discussions) — repo dh6k/dh6k-blog, category "General".
+// GitHub has no API to create a discussion category, so "Comments" could not
+// be created programmatically; General (DIC_kwDOVnZMNs4DKrfA) is used instead.
+// Env vars override these defaults (e.g. on Vercel).
+const repo = import.meta.env.PUBLIC_GISCUS_REPO || 'dh6k/dh6k-blog';
+const repoId = import.meta.env.PUBLIC_GISCUS_REPO_ID || 'R_kgDOVnZMNg';
+const categoryId = import.meta.env.PUBLIC_GISCUS_CATEGORY_ID || 'DIC_kwDOVnZMNs4DKrfA';
 ---
 {repo && repoId && categoryId && (
 	<section>
@@ -11,7 +13,7 @@ const categoryId = import.meta.env.PUBLIC_GISCUS_CATEGORY_ID || '';
 			src="https://giscus.app/client.js"
 			data-repo={repo}
 			data-repo-id={repoId}
-			data-category="Comments"
+			data-category="General"
 			data-category-id={categoryId}
 			data-mapping="pathname"
 			data-reactions-enabled="1"
