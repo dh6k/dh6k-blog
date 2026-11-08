@@ -1,0 +1,13 @@
+---
+// Buttondown free tier — replace `dh6k` with the real Buttondown username
+// when the account is created. No JS needed, plain form POST.
+const username = import.meta.env.PUBLIC_BUTTONDOWN_USERNAME || 'dh6k';
+---
+<section>
+	<h3>Nhận bài mới qua email</h3>
+	<form action={`https://buttondown.com/api/emails/embed-subscribe/${username}`} method="post">
+		<input type="email" name="email" placeholder="Email của bạn" required />
+		<button type="submit">Đăng ký</button>
+	</form>
+	<p><small>Qua Buttondown. Không spam, hủy lúc nào cũng được.</small></p>
+</section>

@@ -1,0 +1,26 @@
+---
+// Giscus (GitHub Discussions) — fill in repo IDs after the repo is created
+// at https://giscus.app. Until then this renders nothing.
+const repo = import.meta.env.PUBLIC_GISCUS_REPO || '';
+const repoId = import.meta.env.PUBLIC_GISCUS_REPO_ID || '';
+const categoryId = import.meta.env.PUBLIC_GISCUS_CATEGORY_ID || '';
+---
+{repo && repoId && categoryId && (
+	<section>
+		<script
+			src="https://giscus.app/client.js"
+			data-repo={repo}
+			data-repo-id={repoId}
+			data-category="Comments"
+			data-category-id={categoryId}
+			data-mapping="pathname"
+			data-reactions-enabled="1"
+			data-emit-metadata="0"
+			data-input-position="bottom"
+			data-theme="dark"
+			data-lang="vi"
+			crossorigin="anonymous"
+			async
+		></script>
+	</section>
+)}

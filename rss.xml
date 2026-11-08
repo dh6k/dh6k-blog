@@ -1,0 +1,2326 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title><![CDATA[dh6k's 2nd blog]]></title><description><![CDATA[dh6k's 2nd blog]]></description><link>https://hn.dh6k.vip</link><generator>RSS for Node</generator><lastBuildDate>Sun, 08 Nov 2026 19:17:26 GMT</lastBuildDate><atom:link href="https://hn.dh6k.vip/rss.xml" rel="self" type="application/rss+xml"/><language><![CDATA[en]]></language><ttl>60</ttl><item><title><![CDATA[Hành trình biến Android thành AI Server: Tự chế Installer Odysseus, Debian Slim và ChromaDB không dùng Docker]]></title><description><![CDATA[Hướng dẫn & kinh nghiệm tự host Odysseus AI trên Android qua Termux, PRoot-Distro Debian Slim, ChromaDB, FastEmbed & MCP không dùng Docker.]]></description><link>https://hn.dh6k.vip/odysseus-ai-android-termux-proot-debian</link><guid isPermaLink="true">https://hn.dh6k.vip/odysseus-ai-android-termux-proot-debian</guid><category><![CDATA[`Odysseus Android`]]></category><category><![CDATA[`Termux self-host`]]></category><category><![CDATA[`Debian PRoot Android`]]></category><category><![CDATA[`AI self-host Android`]]></category><category><![CDATA[`ChromaDB Android`]]></category><category><![CDATA[`Termux PRoot`]]></category><category><![CDATA[`BYOK AI`]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sat, 08 Aug 2026 17:56:11 GMT</pubDate><enclosure url="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/c1866b5b-2d91-46f4-852e-43a8ae6a2694.png" length="0" type="image/jpeg"/><content:encoded><![CDATA[<h2>TL;DR</h2>
+<p>Ban đầu, ý định chỉ là tìm một giải pháp chạy Web UI AI gọn nhẹ trên thiết bị Android. Nhưng sau một chuỗi các thử nghiệm, sửa lỗi mất tương thích và tối ưu hóa hệ thống, kết quả thu được là một AI Control Plane hoàn chỉnh chạy ngay trong môi trường user-space Linux của Termux.</p>
+<p>Stack kỹ thuật cuối cùng bao gồm: <strong>Termux -&gt; PRoot-Distro (Debian Bookworm Slim) -&gt; Odysseus (main branch) -&gt; ChromaDB v1.5.9 (venv riêng) -&gt; FastEmbed -&gt; MCP (Email, RAG, Memory, Image Gen) -&gt; BYOK APIs</strong>.</p>
+<p>Setup này hoàn toàn <strong>không sử dụng Docker</strong>, không cài Node.js/Chromium (Browser MCP chủ động tắt để tiết kiệm tài nguyên), mặc định chỉ bind vào <code>127.0.0.1</code> để bảo mật. Toàn bộ quy trình từ kiểm tra tương thích kernel (<code>ptrace</code>/<code>seccomp</code>), khởi tạo môi trường, patch bug upstream, cho đến tự động khởi chạy dịch vụ qua <strong>Termux:Boot</strong> đã được đóng gói gọn gàng trong một kịch bản cài đặt tự động (<code>install-odysseus-android-debian-v2.sh</code>).</p>
+<hr />
+<h2>Mục lục</h2>
+<ol>
+<li><p><a href="#1-m%E1%BB%99t-chi%E1%BA%BFc-android-c%C3%B3-th%E1%BB%83-th%C3%A0nh-ai-server-nh%E1%BB%8F-%C4%91%E1%BA%BFn-m%E1%BB%A9c-n%C3%A0o">Một chiếc Android có thể thành AI server nhỏ đến mức nào?</a></p>
+</li>
+<li><p><a href="#2-m%E1%BB%A5c-ti%C3%AAu-c%E1%BB%A7a-d%E1%BB%B1-%C3%A1n">Mục tiêu của dự án</a></p>
+</li>
+<li><p><a href="#3-ki%E1%BA%BFn-tr%C3%BAc-t%E1%BB%95ng-th%E1%BB%83">Kiến trúc tổng thể</a></p>
+</li>
+<li><p><a href="#4-l%E1%BB%B1a-ch%E1%BB%8Dn-n%E1%BB%81n-t%E1%BA%A3ng-v%C3%AC-sao-proot-distro--debian-slim">Lựa chọn nền tảng: Vì sao PRoot-Distro + Debian Slim?</a></p>
+</li>
+<li><p><a href="#5-so-s%C3%A1nh-ki%E1%BA%BFn-tr%C3%BAc-desktop-vs-android-installer">So sánh kiến trúc Desktop vs Android Installer</a></p>
+</li>
+<li><p><a href="#6-nh%E1%BA%ADt-k%C3%BD-kh%E1%BA%AFc-ph%E1%BB%A5c-s%E1%BB%B1-c%E1%BB%91-what-went-wrong">Nhật ký khắc phục sự cố (What Went Wrong)</a></p>
+</li>
+<li><p><a href="#7-fix-1-patch-l%E1%BB%97i-thi%E1%BA%BFu-any-import-%E1%BB%9F-upstream">Fix #1: Patch lỗi thiếu <code>Any</code> import ở Upstream</a></p>
+</li>
+<li><p><a href="#8-fix-2-qu%E1%BA%A3n-l%C3%BD-mcp-dependency-drift">Fix #2: Quản lý MCP Dependency Drift</a></p>
+</li>
+<li><p><a href="#9-fix-3-bi%E1%BA%BFn-chromadb-th%C3%A0nh-m%E1%BB%99t-standalone-service">Fix #3: Biến ChromaDB thành một Standalone Service</a></p>
+</li>
+<li><p><a href="#10-fix-4-x%E1%BB%AD-l%C3%BD-fastembed--onnx-cpu-affinity-trong-proot">Fix #4: Xử lý FastEmbed / ONNX CPU Affinity trong PRoot</a></p>
+</li>
+<li><p><a href="#11-x%E1%BB%AD-l%C3%BD-mime-type-upload-v%E1%BB%9Bi-python-magic">Xử lý MIME Type Upload với <code>python-magic</code></a></p>
+</li>
+<li><p><a href="#12-c%E1%BA%AFt-gi%E1%BA%A3m-browser-mcp-trade-off-h%E1%BB%A3p-l%C3%BD-cho-android">Cắt giảm Browser MCP: Trade-off hợp lý cho Android</a></p>
+</li>
+<li><p><a href="#13-launcher-hai-t%E1%BA%A7ng-ph%E1%BB%91i-h%E1%BB%A3p-chromadb--odysseus">Launcher hai tầng: Phối hợp ChromaDB &amp; Odysseus</a></p>
+</li>
+<li><p><a href="#14-service-supervisor--autostart-kh%C3%B4ng-d%C3%B9ng-systemd">Service Supervisor &amp; Autostart không dùng Systemd</a></p>
+</li>
+<li><p><a href="#15-t%C3%ADch-h%E1%BB%A3p-opencodex-ch%E1%BA%A1y-song-song">Tích hợp OpenCodex chạy song song</a></p>
+</li>
+<li><p><a href="#16-th%E1%BB%AD-nghi%E1%BB%87m-tr%C3%AAn-emulator-s%E1%BB%B1-c%E1%BB%91-ptracetraceme-permission-denied">Thử nghiệm trên Emulator: Sự cố <code>ptrace(TRACEME)</code> Permission Denied</a></p>
+</li>
+<li><p><a href="#17-c%C6%A1-ch%E1%BA%BF-fail-fast-proot-preflight-trong-installer-v2">Cơ chế Fail Fast: PRoot Preflight trong Installer v2</a></p>
+</li>
+<li><p><a href="#18-m%E1%BA%B7c-%C4%91%E1%BB%8Bnh-an-to%C3%A0n-localhost-binding--b%E1%BA%A3o-m%E1%BA%ADt-api-keys">Mặc định an toàn: Localhost Binding &amp; Bảo mật API Keys</a></p>
+</li>
+<li><p><a href="#19-byok-v%C3%AC-sao-m%C3%B4-h%C3%ACnh-n%C3%A0y-kh%E1%BA%A3-thi-tr%C3%AAn-di-%C4%91%E1%BB%99ng">BYOK: Vì sao mô hình này khả thi trên di động?</a></p>
+</li>
+<li><p><a href="#20-t%E1%BB%91i-%C6%B0u-h%C3%B3a-dung-l%C6%B0%E1%BB%A3ng-l%C6%B0u-tr%E1%BB%AF-disk-cleanup">Tối ưu hóa dung lượng lưu trữ (Disk Cleanup)</a></p>
+</li>
+<li><p><a href="#21-nh%E1%BB%AFng-gi%E1%BB%9Bi-h%E1%BA%A1n-k%E1%BB%B9-thu%E1%BA%ADt-c%E1%BA%A7n-l%C6%B0u-%C3%BD">Những giới hạn kỹ thuật cần lưu ý</a></p>
+</li>
+<li><p><a href="#22-h%C6%B0%E1%BB%9Bng-d%E1%BA%ABn-s%E1%BB%AD-d%E1%BB%A5ng-installer">Hướng dẫn sử dụng Installer</a></p>
+</li>
+<li><p><a href="#23-k%E1%BA%BFt-lu%E1%BA%ADn">Kết luận</a></p>
+</li>
+<li><p><a href="#24-maintenance-checklist-nh%E1%BB%AFng-%C4%91i%E1%BB%83m-c%E1%BA%A7n-theo-d%C3%B5i-khi-upstream-thay-%C4%91%E1%BB%95i">Maintenance Checklist: Những điểm cần theo dõi khi Upstream thay đổi</a></p>
+</li>
+</ol>
+<hr />
+<h2>1. Một chiếc Android có thể thành AI server nhỏ đến mức nào?</h2>
+<p>Ban đầu, ý định chỉ là tìm một giải pháp chạy Web UI AI đơn giản để chạy trên chiếc điện thoại Android không còn dùng đến. Nhưng càng đi sâu vào chi tiết triển khai, yêu cầu bài toán lại càng mở rộng: làm sao để có lưu trữ Vector RAG, có bộ nhớ semantic memory, hỗ trợ các Python MCP server (Model Context Protocol), và tự động khởi động cùng hệ điều hành mà không làm cạn kiệt tài nguyên thiết bị?</p>
+<p>Cuối cùng, thay vì một ứng dụng đơn lẻ, tôi thu được một mini Linux environment hoàn chỉnh sống ngay trong Termux, với Debian Bookworm Slim, ChromaDB, FastEmbed, MCP và một mini init system tự viết.</p>
+<p>Bài viết này ghi lại toàn bộ quá trình: từ lý do lựa chọn kiến trúc, các lỗi bất ngờ phát sinh khi đem ứng dụng Python từ x86_64 xuống môi trường PRoot Android, đến cách đóng gói toàn bộ các workaround đó thành một script installer có thể tái sử dụng và đáng tin cậy.</p>
+<hr />
+<h2>2. Mục tiêu của dự án</h2>
+<ul>
+<li><p><strong>Self-host Odysseus</strong>: Triển khai ứng dụng Web UI / Agent Orchestrator Odysseus trên thiết bị Android.</p>
+</li>
+<li><p><strong>BYOK (Bring Your Own Key)</strong>: Sử dụng API key cá nhân kết nối tới các nhà cung cấp LLM bên ngoài để xử lý tính toán nặng.</p>
+</li>
+<li><p><strong>Không sử dụng Docker</strong>: Loại bỏ hoàn toàn sự phụ thuộc vào Docker daemon nhằm giữ hệ thống nhẹ nhàng và portable.</p>
+</li>
+<li><p><strong>Nhẹ, gọn &amp; Đủ tính năng</strong>: Giữ lại các MCP server thiết yếu (Email, RAG, Memory, Image Generation) nhưng cắt giảm các thành phần quá tải cho di động.</p>
+</li>
+<li><p><strong>Mặc định an toàn</strong>: Tất cả dịch vụ chỉ bind vào IP loopback nội bộ (<code>127.0.0.1</code>).</p>
+</li>
+</ul>
+<hr />
+<h2>3. Kiến trúc tổng thể</h2>
+<p>Sơ đồ bên dưới thể hiện cấu trúc phân tầng của toàn bộ hệ thống sau khi cài đặt:</p>
+<p>Android Device (Host Kernel)</p>
+<p>└── Termux App (User-Space Environment)</p>
+<pre><code class="language-plaintext">├── \~/start-services.sh (Shell Service Supervisor)
+
+│   ├── \~/.termux/boot/10-services (Termux:Boot Autostart Hook)
+
+│   └── \~/.bashrc / \~/.zshrc (Interactive Shell Autostart Hook)
+
+├── \~/run-odysseus.sh (Termux Host Entrypoint / PROOT\_NO\_SECCOMP export)
+
+└── PRoot-Distro (Syscall Translation via ptrace)
+
+    └── Debian Bookworm Slim (Guest Rootfs)
+
+        ├── ChromaDB Server (:8100) \[/root/chroma-venv, Data: /root/chroma-data\]
+
+        └── Odysseus App (:7000) \[/root/odysseus/venv\]
+
+            ├── FastEmbed / ONNX Runtime (Explicit threads \= 2\)
+
+            ├── Python MCP Servers (Email, RAG, Memory, Image Gen)
+
+            └── BYOK Remote LLM Providers (OpenAI, Anthropic, Gemini, v.v.)
+</code></pre>
+<p><em>Ghi chú kiến trúc:</em></p>
+<ul>
+<li><p><strong>Browser MCP</strong>: Chủ động tắt (<code>ODYSSEUS_DISABLE_BROWSER_MCP=1</code>). Không cài Node.js, Chromium hay Playwright.</p>
+</li>
+<li><p><strong>OpenCodex</strong>: Thành phần tùy chọn. Script cài đặt KHÔNG tự cài OpenCodex, nhưng nếu phát hiện binary <code>ocx</code> hoặc <code>opencodex</code> đã tồn tại trên Termux host, supervisor sẽ tự động thực hiện health-check và duy trì service này chạy song song.</p>
+</li>
+</ul>
+<hr />
+<h2>4. Lựa chọn nền tảng: Vì sao PRoot-Distro + Debian Slim?</h2>
+<h3>Vì sao không dùng Docker?</h3>
+<p>Cần làm rõ rằng Docker không phải là điều tuyệt đối không thể chạy trên Android. Tuy nhiên, Docker daemon đòi hỏi kernel support rất sâu (cgroups, namespaces, overlayfs) vốn thường bị cắt giảm trên các bản ROM Android thương mại. Việc cấu hình Docker trên Android đòi hỏi thiết bị phải root và tùy chỉnh kernel – điều này làm mất đi tính đơn giản và khả năng di chuyển (portability).</p>
+<p>Do đó, setup này chọn <strong>PRoot-Distro</strong> làm nền tảng vì nó hoạt động hoàn toàn ở không gian người dùng (user-space) mà không cần quyền root.</p>
+<h3>Bản chất của PRoot</h3>
+<p>PRoot không phải là một máy ảo (VM) và cũng không phải là container cấp kernel như Docker. Khi chạy trong PRoot, hệ điều hành Linux khách (guest) vẫn dùng chung kernel của thiết bị Android host. PRoot sử dụng cơ chế <code>ptrace</code> để chặn (intercept) và dịch các lời gọi hệ thống (system calls) về đường dẫn rootfs ảo. Đây chính là yếu tố then chốt dẫn tới các hiện tượng tương thích về sau.</p>
+<h3>Lựa chọn Debian Bookworm Slim</h3>
+<p>Installer sử dụng image <code>debian:bookworm-slim</code> thông qua hỗ trợ OCI của <code>proot-distro</code>. Những lý do thiết kế bao gồm:</p>
+<ol>
+<li><p><strong>Sử dụng glibc</strong>: Khác với các distro sử dụng <code>musl</code> như Alpine, Debian dùng <code>glibc</code> giúp khả năng tương thích với các bản pre-compiled Python binary wheels (như ONNX Runtime, ChromaDB, Pydantic) mượt mà hơn rất nhiều.</p>
+</li>
+<li><p><strong>Ecosystem phong phú</strong>: Hệ thống quản lý gói <code>apt</code> của Debian đầy đủ và ổn định.</p>
+</li>
+<li><p><strong>Kích thước tối ưu</strong>: Image slim nhỏ gọn hơn đáng kể so với Ubuntu đầy đủ, loại bỏ các dịch vụ ngầm không cần thiết.</p>
+</li>
+</ol>
+<hr />
+<h2>5. So sánh kiến trúc Desktop vs Android Installer</h2>
+<table>
+<thead>
+<tr>
+<th>Thành phần</th>
+<th>Upstream / Desktop Style</th>
+<th>Android Installer (<code>install-odysseus-android-debian-v2.sh</code>)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Môi trường Linux</strong></td>
+<td>Native Linux / Docker Container</td>
+<td>Debian Bookworm Slim trong PRoot-Distro</td>
+</tr>
+<tr>
+<td><strong>ChromaDB</strong></td>
+<td>Service riêng trong Docker Compose</td>
+<td>Standalone Python venv (<code>/root/chroma-venv</code>) bind <code>127.0.0.1:8100</code></td>
+</tr>
+<tr>
+<td><strong>Embedding Engine</strong></td>
+<td>FastEmbed (Auto CPU Affinity)</td>
+<td>FastEmbed với số thread cố định (<code>FASTEMBED_THREADS=2</code>)</td>
+</tr>
+<tr>
+<td><strong>MCP Python SDK</strong></td>
+<td>Unpinned Dependency</td>
+<td>Ghim phiên bản tương thích v1 (<code>mcp==1.28.1</code>)</td>
+</tr>
+<tr>
+<td><strong>Browser MCP</strong></td>
+<td>Playwright / Node.js Process</td>
+<td>Tắt hoàn toàn (<code>ODYSSEUS_DISABLE_BROWSER_MCP=1</code>)</td>
+</tr>
+<tr>
+<td><strong>Quản lý Process</strong></td>
+<td>Docker Compose / Systemd</td>
+<td>Shell Supervisor (<code>start-services.sh</code>)</td>
+</tr>
+<tr>
+<td><strong>Tự động khởi động</strong></td>
+<td>OS System Service</td>
+<td>Termux:Boot + Shell Startup Hook</td>
+</tr>
+<tr>
+<td><strong>Địa chỉ Network Bind</strong></td>
+<td>Configurable / Public IP</td>
+<td>Mặc định chỉ Bind Loopback (<code>127.0.0.1</code>)</td>
+</tr>
+</tbody></table>
+<hr />
+<h2>6. Nhật ký khắc phục sự cố (What Went Wrong)</h2>
+<table>
+<thead>
+<tr>
+<th>Hiện tượng / Triệu chứng</th>
+<th>Nguyên nhân gốc rễ</th>
+<th>Giải pháp trong Installer</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>NameError: name 'Any' is not defined</code> khi import agent loop</td>
+<td>Bug upstream trong <code>src/agent_loop.py</code> sử dụng type hint <code>dict[str, Any]</code> nhưng quên import <code>Any</code> từ <code>typing</code></td>
+<td>Kiểm tra file source và bổ sung <code>Any</code> vào câu lệnh import một cách có điều kiện</td>
+</tr>
+<tr>
+<td><code>AttributeError: 'Server' object has no attribute 'list_tools'</code></td>
+<td>Code Odysseus main sử dụng Low-level API v1 của MCP SDK, nhưng dependency <code>mcp</code> không pin version bị nâng lên v2</td>
+<td>Ghim phiên bản <code>mcp==1.28.1</code> trong <code>requirements.txt</code> trước khi <code>pip install</code></td>
+</tr>
+<tr>
+<td>Log báo <code>ChromaDB not reachable</code> / <code>VectorRAG degraded</code></td>
+<td>Tách khỏi Docker Compose khiến Odysseus không tìm thấy ChromaDB server ở port 8100</td>
+<td>Dựng một venv riêng cho ChromaDB v1.5.9, quản lý lifecycle khởi động trước Odysseus</td>
+</tr>
+<tr>
+<td>Log cảnh báo <code>pthread_setaffinity_np failed error code: 22</code></td>
+<td>ONNX Runtime trong PRoot cố tự đặt CPU affinity nhưng Android kernel/topology trả về <code>EINVAL</code></td>
+<td>Gán biến <code>FASTEMBED_THREADS=2</code> và patch <code>src/embeddings.py</code> truyền <code>threads</code> vào FastEmbed</td>
+</tr>
+<tr>
+<td>Xử lý upload file fallback về kiểm tra đuôi mở rộng cơ bản</td>
+<td>Môi trường Debian tối giản thiếu C-library <code>libmagic</code> để phát hiện MIME type chính xác</td>
+<td>Cài đặt package <code>libmagic1</code> (apt) và package <code>python-magic</code> (pip)</td>
+</tr>
+<tr>
+<td>Lỗi thiếu <code>npx</code> / Node.js khi kích hoạt Browser MCP</td>
+<td>Môi trường không có Node.js; Browser MCP cố gọi <code>@playwright/mcp</code></td>
+<td>Patch <code>src/builtin_mcp.py</code> để loại bỏ <code>builtin_browser</code> khi phát hiện env flag tắt browser</td>
+</tr>
+<tr>
+<td><code>proot error: ptrace(TRACEME): Permission denied</code> trên emulator</td>
+<td>Security policy hoặc kernel của Android emulator cấm hoàn toàn syscall <code>ptrace(TRACEME)</code></td>
+<td>Tạo bước Preflight test capability: Thử no-seccomp fallback, nếu cả hai đều thất bại thì fail fast và báo lỗi rõ ràng</td>
+</tr>
+</tbody></table>
+<hr />
+<h2>7. Fix #1: Patch lỗi thiếu <code>Any</code> import ở Upstream</h2>
+<h3>Triệu chứng &amp; Nguyên nhân</h3>
+<p>Khi chạy Odysseus lần đầu, ứng dụng tung ra lỗi:</p>
+<p>NameError: name 'Any' is not defined</p>
+<p>Kiểm tra tệp <code>src/agent_loop.py</code> cho thấy tệp có sử dụng type annotation <code>dict[str, Any]</code>, nhưng dòng lệnh import phía trên chỉ bao gồm:</p>
+<p>from typing import Dict, List, Optional # Thiếu Any!</p>
+<p>Đây là một bug thuần túy từ phía source code upstream.</p>
+<h3>Cơ chế Patch của Installer</h3>
+<p>Installer giải quyết vấn đề này bằng một script Python ngắn chạy ngay trong môi trường Debian. Đoạn code kiểm tra chính xác sự hiện diện của <code>dict[str, Any]</code> và bổ sung <code>Any</code> vào danh sách import nếu chưa có:</p>
+<p># Đoạn snippet trích từ installer</p>
+<p>p = root / "src/agent_loop.py"</p>
+<p>s = p.read_text(encoding="utf-8")</p>
+<p>if "dict[str, Any]" in s:</p>
+<pre><code class="language-plaintext">m \= re.search(r"^from typing import (\[^
+</code></pre>
+<p>]+)$", s, flags=re.MULTILINE)</p>
+<pre><code class="language-plaintext">if m:
+
+    names \= \[x.strip() for x in m.group(1).split(",")\]
+
+    if "Any" not in names:
+
+        names.insert(0, "Any")
+
+        s \= s\[:m.start()\] \+ "from typing import " \+ ", ".join(names) \+ s\[m.end():\]
+
+        p.write\_text(s, encoding="utf-8")
+</code></pre>
+<h3>Bài học về Installer Idempotency</h3>
+<p>Script installer không sử dụng các lệnh patch mù (blind patch) hay đè file toàn bộ. Việc kiểm tra điều kiện trước khi patch giúp script đạt tính <strong>idempotent</strong> – có thể chạy đi chạy lại nhiều lần mà không làm hỏng nguồn code, đồng thời tự động bỏ qua nếu bản nâng cấp upstream sau này đã tự sửa lỗi này.</p>
+<hr />
+<h2>8. Fix #2: Quản lý MCP Dependency Drift</h2>
+<h3>Sự cố API Mismatch</h3>
+<p>Trong quá trình thử nghiệm với nhánh <code>main</code> của Odysseus, việc cài đặt gói <code>mcp</code> không ghim phiên bản đã dẫn đến lỗi runtime:</p>
+<p>AttributeError: 'Server' object has no attribute 'list_tools'</p>
+<p>Lý do là thư viện <code>mcp</code> upstream đã phát hành phiên bản major mới (v2.x) với các thay đổi cấu trúc API, trong khi code của Odysseus <code>main</code> vẫn đang viết theo chuẩn Low-level Server API v1 (như trang trí hàm với <code>@server.list_tools()</code>).</p>
+<h3>Giải pháp</h3>
+<p>Để đảm bảo tính tái lập (reproducibility), installer tạo một tệp tạm để thay thế dòng <code>mcp</code> trong <code>requirements.txt</code> thành phiên bản cụ thể đã qua kiểm chứng:</p>
+<p>mcp==1.28.1</p>
+<p>chromadb-client==1.5.9</p>
+<p>fastembed==0.8.0</p>
+<p>Điều này đảm bảo rằng dù upstream dependency có thay đổi API trong tương lai, quy trình cài đặt installer vẫn cho ra một môi trường hoạt động ổn định.</p>
+<hr />
+<h2>9. Fix #3: Biến ChromaDB thành một Standalone Service</h2>
+<p>Ứng dụng Odysseus sử dụng thư viện <code>chromadb-client</code> để tương tác với ChromaDB server qua HTTP REST API. Trong các hướng dẫn chuẩn cho Desktop, ChromaDB thường được chạy dưới dạng một container trong Docker Compose.</p>
+<p>Vì không sử dụng Docker, installer đã chuyển đổi ChromaDB thành một dịch vụ độc lập:</p>
+<ol>
+<li><p>Tạo một Python virtualenv riêng biệt tại <code>/root/chroma-venv</code>.</p>
+</li>
+<li><p>Cài đặt <code>chromadb==1.5.9</code>.</p>
+</li>
+<li><p>Chỉ định thư mục lưu trữ dữ liệu tại <code>/root/chroma-data</code>.</p>
+</li>
+<li><p>Lắng nghe tại <code>127.0.0.1:8100</code>.</p>
+</li>
+</ol>
+<h3>Phân biệt Core App Boot &amp; Full Feature Stack Healthy</h3>
+<p>Trong quá trình kiểm thử, nếu ChromaDB chưa khởi động, Web UI chính của Odysseus vẫn có thể boot ở trạng thái suy giảm (degraded state) và ghi log:</p>
+<p>[WARN] ChromaDB not reachable at 127.0.0.1:8100</p>
+<p>[WARN] VectorRAG unavailable</p>
+<p>[WARN] MemoryVectorStore degraded</p>
+<p>Sau khi dịch vụ ChromaDB được khởi động và cổng 8100 sẵn sàng, các log sẽ chuyển sang:</p>
+<p>[INFO] VectorRAG ready</p>
+<p>[INFO] MemoryVectorStore ready</p>
+<p>Đây là ví dụ rõ ràng minh họa sự khác biệt giữa việc "ứng dụng chính chạy được" và việc "toàn bộ hệ thống tính năng đạt trạng thái healthy".</p>
+<hr />
+<h2>10. Fix #4: Xử lý FastEmbed / ONNX CPU Affinity trong PRoot</h2>
+<p>Khi FastEmbed khởi tạo các mô hình nhúng (embeddings) trong môi trường PRoot, hệ thống thường ghi nhận cảnh báo:</p>
+<p>pthread_setaffinity_np failed error code: 22 Invalid argument</p>
+<p>Mặc dù sau cảnh báo này FastEmbed vẫn tiếp tục load model và hoạt động, nhưng lỗi xuất hiện liên tục trong log.</p>
+<h3>Giải thích nguyên nhân [Inference]</h3>
+<p><em>[Inference]</em> ONNX Runtime mặc định cố gắng tự động phân bổ worker threads và gắn CPU affinity dựa trên cấu trúc nhân CPU của thiết bị. Tuy nhiên, kiến trúc virtual rootfs của PRoot kết hợp với chính sách phân quyền kernel Android khiến syscall <code>pthread_setaffinity_np</code> nhận được tham số không hợp lệ (<code>EINVAL</code> / 22).</p>
+<h3>Tối ưu hóa trong Installer</h3>
+<p>Installer khắc phục vấn đề này bằng cách thiết lập biến môi trường <code>FASTEMBED_THREADS=2</code> và patch constructor của FastEmbed trong <code>src/embeddings.py</code> để truyền tham số <code>threads</code> một cách tường minh:</p>
+<p># Patch trong src/embeddings.py</p>
+<p>threads = max(1, int(os.getenv("FASTEMBED_THREADS", "2")))</p>
+<p>kwargs = {"model_name": self.model, "cache_dir": cache_dir, "threads": threads}</p>
+<p>Mức <strong>2 threads</strong> được chọn làm giá trị mặc định bảo thủ (conservative default) giúp giảm thiểu xung đột cấu hình CPU trên di động mà vẫn đảm bảo hiệu năng xử lý.</p>
+<hr />
+<h2>11. Xử lý MIME Type Upload với <code>python-magic</code></h2>
+<p>Để việc xử lý tệp tin tải lên (file upload) trong Odysseus hoạt động chính xác thay vì fallback về nhận diện đuôi mở rộng đơn thuần, installer bổ sung:</p>
+<ul>
+<li><p>C-library hệ thống: <code>libmagic1</code> (cài qua <code>apt-get</code>).</p>
+</li>
+<li><p>Python binding: <code>python-magic</code> (cài qua <code>pip</code>).</p>
+</li>
+</ul>
+<p>Bổ sung nhỏ này giúp ứng dụng phân loại MIME type của tài liệu chính xác hơn ở cấp độ binary.</p>
+<hr />
+<h2>12. Cắt giảm Browser MCP: Trade-off hợp lý cho Android</h2>
+<p>Thành phần Browser MCP mặc định trong Odysseus cố gắng khởi chạy dịch vụ qua lệnh:</p>
+<p>npx @playwright/mcp</p>
+<p>Trong môi trường Debian tối giản ban đầu, lệnh này lập tức thất bại do thiếu Node.js và <code>npx</code>.</p>
+<h3>Quyết định Thiết kế</h3>
+<p>Việc cài đặt Node.js, Chromium và các dependency của Playwright vào PRoot trên Android sẽ ngốn hàng gigabyte bộ nhớ và tạo ra các tiến trình chạy ngầm cực kỳ nặng nề.</p>
+<p>Do đó, installer quyết định:</p>
+<ol>
+<li><p><strong>Loại bỏ</strong>: Không cài Node.js, không cài Chromium, không cài Playwright.</p>
+</li>
+<li><p><strong>Patch mã nguồn</strong>: Thêm cờ tắt riêng <code>ODYSSEUS_DISABLE_BROWSER_MCP</code> vào <code>src/builtin_mcp.py</code> để loại bỏ duy nhất <code>builtin_browser</code> ra khỏi danh sách MCP server.</p>
+</li>
+<li><p><strong>Giữ lại</strong>: Toàn bộ các MCP server bằng Python (Email MCP, RAG MCP, Memory MCP, Image Generation MCP) vẫn hoạt động bình thường.</p>
+</li>
+</ol>
+<p># Injected patch in src/builtin_mcp.py</p>
+<p>if os.environ.get("ODYSSEUS_DISABLE_BROWSER_MCP", "").lower() in ("1", "true", "yes"):</p>
+<pre><code class="language-plaintext">\_BUILTIN\_NPX\_SERVERS.pop("builtin\_browser", None)
+</code></pre>
+<p>Đây là một trade-off hoàn toàn hợp lý: đánh đổi tính năng tự động duyệt web bằng trình duyệt headless để lấy một hệ thống gọn nhẹ, tiết kiệm pin và RAM.</p>
+<hr />
+<h2>13. Launcher hai tầng: Phối hợp ChromaDB &amp; Odysseus</h2>
+<p>Để tránh tình trạng race condition khi Odysseus khởi động trước khi ChromaDB sẵn sàng, installer xây dựng cấu trúc launcher hai tầng:</p>
+<h3>Tầng Termux Host (<code>~/run-odysseus.sh</code>)</h3>
+<p>Đóng vai trò điểm truy cập từ Termux, thiết lập các biến môi trường tương thích PRoot (như <code>PROOT_NO_SECCOMP=1</code> nếu cần) và đăng nhập vào Debian:</p>
+<p>#!/data/data/com.termux/files/usr/bin/bash</p>
+<p>exec proot-distro login odysseus-debian -- bash -lc '/root/start-odysseus.sh'</p>
+<h3>Tầng Debian Guest (<code>/root/start-odysseus.sh</code>)</h3>
+<p>Hoạt động như một kịch bản điều phối chi tiết bên trong Debian:</p>
+<ol>
+<li><p><strong>Check Port 8100</strong>: Lắng nghe xem ChromaDB đã mở cổng chưa.</p>
+</li>
+<li><p><strong>Khởi động ChromaDB</strong>: Nếu chưa, gọi <code>chroma run --host 127.0.0.1 --port 8100 --path /root/chroma-data</code> dưới dạng background process.</p>
+</li>
+<li><p><strong>Chờ Sẵn sàng</strong>: Vòng lặp kiểm tra tối đa 60 giây cho tới khi port 8100 phản hồi.</p>
+</li>
+<li><p><strong>Khởi động Odysseus</strong>: Kích hoạt venv Odysseus và chạy Uvicorn server tại <code>127.0.0.1:7000</code>.</p>
+</li>
+<li><p><strong>Cleanup Trap</strong>: Đăng ký <code>trap cleanup EXIT INT TERM</code> để tự động ngắt ChromaDB process nếu launcher này bị dừng.</p>
+</li>
+</ol>
+<hr />
+<h2>14. Service Supervisor &amp; Autostart không dùng Systemd</h2>
+<p>Môi trường PRoot không chạy daemon <code>systemd</code> (PID 1). Do đó, việc quản lý các tiến trình khởi động được giao cho một kịch bản supervisor nhẹ tại <code>~/start-services.sh</code>.</p>
+<pre><code class="language-plaintext">           Android Boot / Termux Open
+
+                       │
+
+                       ▼
+
+             \~/start-services.sh
+
+                       │
+
+        ┌──────────────┴──────────────┐
+
+        │                             │
+
+\[termux-wake-lock\]           \[Check Odysseus\]
+
+                                      │
+
+                             ┌────────┴────────┐
+
+                             │                 │
+
+                        Healthy/Running     Not Running
+
+                             │                 │
+
+                           Skip         Start \~/run-odysseus.sh
+
+                                               │
+
+                                      \[Check OpenCodex\]
+
+                                               │
+
+                                        (If installed \-\&gt;
+
+                                         Health &amp; Start)
+</code></pre>
+<h3>Nguyên lý hoạt động của <code>start-services.sh</code></h3>
+<ul>
+<li><p><strong>Giữ thiết bị Wake</strong>: Bật <code>termux-wake-lock</code> để ngăn Android chuyển CPU sang trạng thái ngủ sâu (deep sleep).</p>
+</li>
+<li><p><strong>Health-check Odysseus</strong>: Sử dụng <code>curl -fsS http://127.0.0.1:7000/</code>.</p>
+</li>
+<li><p><strong>Chống Stale PID</strong>: Kiểm tra PID file <code>~/.odysseus.pid</code> kết hợp đọc <code>/proc/$pid/cmdline</code> để đảm bảo không nhầm lẫn nếu hệ thống Android tái sử dụng PID cũ cho một tiến trình khác.</p>
+</li>
+</ul>
+<h3>Tái sử dụng tại 2 điểm Autostart</h3>
+<ol>
+<li><p><strong>Termux:Boot Hook</strong> (<code>~/.termux/boot/10-services</code>): Tự động thực thi sau khi điện thoại khởi động xong 10 giây.</p>
+</li>
+<li><p><strong>Shell Startup Hook</strong> (<code>~/.bashrc</code> hoặc <code>~/.zshrc</code>): Tự động chạy mỗi khi người dùng mở ứng dụng Termux, giúp khôi phục dịch vụ nếu Android vô tình kill tiến trình chạy ngầm trước đó.</p>
+</li>
+</ol>
+<hr />
+<h2>15. Tích hợp OpenCodex chạy song song</h2>
+<p>Mặc dù installer <strong>KHÔNG</strong> cài đặt OpenCodex, nhưng kịch bản <code>start-services.sh</code> được thiết kế sẵn khả năng tương thích:</p>
+<ul>
+<li><p>Kiểm tra sự tồn tại của lệnh <code>ocx</code> hoặc <code>opencodex</code> trong <code>$PATH</code>.</p>
+</li>
+<li><p>Nếu phát hiện binary đã được người dùng cài đặt trước đó, supervisor sẽ gọi <code>ocx health</code>.</p>
+</li>
+<li><p>Nếu OpenCodex chưa chạy, nó sẽ được tự động khởi động song song với Odysseus và ghi log riêng tại <code>~/opencodex.log</code>.</p>
+</li>
+</ul>
+<hr />
+<h2>16. Thử nghiệm trên Emulator: Sự cố <code>ptrace(TRACEME)</code> Permission Denied</h2>
+<p>Khi đem installer v2 sang thử nghiệm trên một môi trường Android Emulator (kiến trúc x86_64), một sự cố nghiêm trọng đã xảy ra:</p>
+<p><code>proot-distro</code> thực hiện việc authenticate OCI registry, tải image <code>debian:bookworm-slim</code> (manifest x86_64 hoàn toàn đúng kiến trúc) và giải nén rootfs thành công. Nhưng ngay khi gọi <code>proot-distro login odysseus-debian</code>, màn hình xuất hiện lỗi:</p>
+<p>proot error: ptrace(TRACEME): Permission denied</p>
+<p>Ngay cả khi thử đặt biến môi trường <code>PROOT_NO_SECCOMP=1</code>, lỗi trên vẫn tiếp tục xuất hiện.</p>
+<h3>Phân tích Bản chất Lỗi</h3>
+<ol>
+<li><p><strong>Cơ chế ptrace</strong>: PRoot bắt buộc phải dùng lệnh hệ thống <code>ptrace(TRACEME)</code> để theo dõi và can thiệp vào các syscall của tiến trình con.</p>
+</li>
+<li><p><strong>Nguyên nhân chính</strong>: Kernel hoặc chính sách bảo mật (SELinux/seccomp policy) của bản build Android Emulator đó đã cấm hoàn toàn khả năng gọi <code>ptrace(TRACEME)</code>.</p>
+</li>
+<li><p><strong>Các điểm khẳng định quan trọng</strong>:</p>
+<ul>
+<li><p>Đây <strong>KHÔNG</strong> phải là lỗi của Debian hay <code>bookworm-slim</code>.</p>
+</li>
+<li><p>Đây <strong>KHÔNG</strong> phải lỗi do máy khách dùng kiến trúc x86_64 (việc lấy manifest x86_64 trên emulator x86_64 là hoàn toàn chính xác).</p>
+</li>
+<li><p>Đây <strong>KHÔNG</strong> phải do thiếu <code>/usr/bin/bash</code> hay do bug của Python.</p>
+</li>
+<li><p>Các lỗi liên quan đến <code>execve</code> hay loader xuất hiện phía sau chỉ là hệ quả kéo theo khi PRoot đã thất bại ngay từ bước khởi tạo đầu tiên.</p>
+</li>
+</ul>
+</li>
+</ol>
+<p><em>Lưu ý</em>: Không phải mọi Android Emulator đều bị lỗi này, đây chỉ là hành vi của kernel/security build cụ thể trên môi trường đã kiểm thử.</p>
+<hr />
+<h2>17. Cơ chế Fail Fast: PRoot Preflight trong Installer v2</h2>
+<p>Từ bài học trên emulator, bản installer v2 đã bổ sung bước kiểm tra <strong>PRoot Compatibility Preflight</strong> ngay từ đầu script, trước khi thực hiện tải xuống hàng trăm megabyte dữ liệu của Debian.</p>
+<pre><code class="language-plaintext">                PRoot Compatibility Check
+
+                            │
+
+                  ┌─────────┴─────────┐
+
+                  │                   │
+
+           Direct PRoot OK     Direct PRoot Failed
+
+                  │                   │
+
+               Continue     Test PROOT\_NO\_SECCOMP=1
+
+                                      │
+
+                              ┌───────┴───────┐
+
+                              │               │
+
+                         Seccomp OK      Both Failed
+
+                              │               │
+
+                      Export SECCOMP=1   Abort Install
+
+                       &amp; Save Flag     (Fail Fast Message)
+
+                              │
+
+                           Continue
+</code></pre>
+<h3>Logic chi tiết của Preflight</h3>
+<p>info "Checking PRoot compatibility..."</p>
+<p>PROOT_NO_SECCOMP_REQUIRED=0</p>
+<p>PROOT_TEST_SHELL="$PREFIX/bin/sh"</p>
+<p>if env -u PROOT_NO_SECCOMP proot "$PROOT_TEST_SHELL" -c 'exit 0' &gt;/dev/null 2&gt;&amp;1; then</p>
+<pre><code class="language-plaintext">ok "PRoot compatibility check passed."
+</code></pre>
+<p>elif PROOT_NO_SECCOMP=1 proot "$PROOT_TEST_SHELL" -c 'exit 0' &gt;/dev/null 2&gt;&amp;1; then</p>
+<pre><code class="language-plaintext">export PROOT\_NO\_SECCOMP=1
+
+PROOT\_NO\_SECCOMP\_REQUIRED=1
+
+warn "PRoot works only with PROOT\_NO\_SECCOMP=1 on this device."
+</code></pre>
+<p>else</p>
+<pre><code class="language-plaintext">die "PRoot cannot run on this Android kernel/security policy..."
+</code></pre>
+<p>fi</p>
+<p>Cách thiết kế này giúp installer phản hồi ngay lập tức (fail fast) nếu môi trường host không đủ điều kiện chạy PRoot, thay vì bắt người dùng chờ đợi tải dữ liệu rồi mới phát hiện lỗi.</p>
+<hr />
+<h2>18. Mặc định an toàn: Localhost Binding &amp; Bảo mật API Keys</h2>
+<p>Cả hai dịch vụ trong hệ thống đều được cấu hình chỉ lắng nghe trên giao diện loopback nội bộ:</p>
+<ul>
+<li><p><strong>Odysseus Web UI</strong>: <code>127.0.0.1:7000</code></p>
+</li>
+<li><p><strong>ChromaDB Server</strong>: <code>127.0.0.1:8100</code></p>
+</li>
+</ul>
+<h3>Ý nghĩa Bảo mật</h3>
+<p>Việc chỉ bind vào <code>127.0.0.1</code> ngăn chặn tình trạng dịch vụ vô tình bị lộ ra ngoài mạng Wi-Fi công cộng. Điều này cực kỳ quan trọng vì Odysseus chứa các thông tin nhạy cảm như API Keys cá nhân, tài khoản email và dữ liệu bộ nhớ riêng tư.</p>
+<p>Nếu có nhu cầu truy cập giao diện Web từ thiết bị khác, giải pháp an toàn được khuyến nghị là sử dụng mạng riêng ảo (như Tailscale/WireGuard), một Reverse Proxy có xác thực, hoặc SSH Tunneling.</p>
+<hr />
+<h2>19. BYOK: Vì sao mô hình này khả thi trên di động?</h2>
+<p>Sở dĩ setup này hoạt động mượt mà trên một chiếc điện thoại Android cấu hình trung bình là nhờ sự phân chia trách nhiệm hợp lý trong mô hình <strong>BYOK (Bring Your Own Key)</strong>:</p>
+<ul>
+<li><p><strong>Thiết bị Android đảm nhận (Local Orchestration)</strong>:</p>
+<ul>
+<li><p>Giao diện Web UI và quản lý luồng hội thoại.</p>
+</li>
+<li><p>Lưu trữ cơ sở dữ liệu local (<code>SQLite</code>).</p>
+</li>
+<li><p>Tìm kiếm Vector Search &amp; Memory (<code>ChromaDB</code>).</p>
+</li>
+<li><p>Tạo Vector Embedding cho văn bản ngắn (<code>FastEmbed</code> / ONNX).</p>
+</li>
+<li><p>Thực thi các tác vụ MCP Python nhẹ (Email, Image Gen, RAG).</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Remote Cloud Providers đảm nhận (LLM Inference)</strong>:</p>
+<ul>
+<li>Việc tính toán xử lý mô hình ngôn ngữ lớn (LLM) hàng chục tỷ tham số được đẩy hoàn toàn sang các API provider bên ngoài (OpenAI, Anthropic, Gemini, v.v.) qua API Key của người dùng.</li>
+</ul>
+</li>
+</ul>
+<p>Nhờ vậy, điện thoại Android đóng vai trò như một <strong>Control Plane / Orchestrator</strong> thông minh chứ không cần gánh phần cứng cho tác vụ inference nặng.</p>
+<hr />
+<h2>20. Tối ưu hóa dung lượng lưu trữ (Disk Cleanup)</h2>
+<p>Để đảm bảo hệ thống chiếm ít không gian bộ nhớ nhất trên di động, installer tự động thực hiện các bước dọn dẹp sau khi cài đặt:</p>
+<ul>
+<li><p>Dùng cờ <code>--no-install-recommends</code> khi cài gói Debian <code>apt</code>.</p>
+</li>
+<li><p>Chạy <code>apt-get clean</code> và xóa danh sách gói <code>/var/lib/apt/lists/*</code>.</p>
+</li>
+<li><p>Xóa bộ nhớ tạm của pip (<code>rm -rf /root/.cache/pip</code>).</p>
+</li>
+<li><p>Tắt Browser MCP và dọn dẹp thư mục cache cũ <code>playwright-mcp-cache</code> nếu có.</p>
+</li>
+</ul>
+<hr />
+<h2>21. Những giới hạn kỹ thuật cần lưu ý</h2>
+<ol>
+<li><p><strong>Phụ thuộc Kernel Android</strong>: PRoot không phải là máy ảo độc lập, mọi hoạt động đều dựa trên kernel host của Android.</p>
+</li>
+<li><p><strong>Cơ chế Kill Background của Android</strong>: Một số ROM Android tùy biến có thể tắt Termux nếu không được cấu hình loại trừ tối ưu hóa pin (Battery Optimization) và bật <code>termux-wake-lock</code>.</p>
+</li>
+<li><p><strong>Tính tương thích Emulator</strong>: Không đảm bảo hoạt động trên mọi Android Emulator do chính sách cấm <code>ptrace</code> ở cấp độ kernel của từng nhà phát triển emulator.</p>
+</li>
+<li><p><strong>Không dành cho Local LLM lớn</strong>: Hệ thống thiết kế cho tác vụ Orchestration, không phù hợp để tự chạy các model LLM dung lượng lớn trực tiếp trên phần cứng điện thoại.</p>
+</li>
+<li><p><strong>Cấu trúc Upstream thay đổi</strong>: Nếu dự án Odysseus upstream thay đổi cấu trúc thư mục hoặc thay đổi API chính trong tương lai, các đoạn code patch trong installer có thể cần được cập nhật tương ứng.</p>
+</li>
+</ol>
+<hr />
+<h2>22. Hướng dẫn sử dụng Installer</h2>
+<p>Để cài đặt hệ thống, người dùng chỉ cần thực hiện các lệnh sau trong ứng dụng Termux:</p>
+<p># Phân quyền thực thi và chạy installer</p>
+<p>chmod +x install-odysseus-android-debian-v2.sh</p>
+<p>./install-odysseus-android-debian-v2.sh</p>
+<p>Sau khi quá trình cài đặt hoàn tất, truy cập ứng dụng tại địa chỉ: <code>http://127.0.0.1:7000</code></p>
+<h3>Các lệnh quản lý hữu ích</h3>
+<p># Theo dõi log hoạt động của Odysseus</p>
+<p>tail -f ~/odysseus.log</p>
+<p># Theo dõi log hoạt động của OpenCodex (nếu có)</p>
+<p>tail -f ~/opencodex.log</p>
+<p># Chạy trực tiếp launcher vào Debian</p>
+<p>./run-odysseus.sh</p>
+<p># Kiểm tra mật khẩu admin ban đầu tạo bởi setup.py</p>
+<p>proot-distro login odysseus-debian -- cat /root/odysseus-setup.log</p>
+<hr />
+<h2>23. Kết luận</h2>
+<p>Mục tiêu của dự án không phải là cố gắng biến một chiếc điện thoại Android thành một "AI Workstation" cồng kềnh. Thay vào đó, bằng cách kết hợp Termux, PRoot-Distro Debian Slim, ChromaDB và các bản patch tương thích nhỏ gọn, chúng ta đã tạo ra một <strong>AI Control Plane</strong> vô cùng hiệu quả, hoạt động ổn định và tự chủ ngay trên thiết bị di động cá nhân.</p>
+<hr />
+<h2>24. Maintenance Checklist: Những điểm cần theo dõi khi Upstream thay đổi</h2>
+<p>Do installer có thực hiện một số bước patch mã nguồn và ghim phiên bản dependency, dưới đây là danh sách các điểm kỹ thuật cần theo dõi khi Odysseus upstream cập nhật:</p>
+<ul>
+<li><p>[ ] Upstream <code>src/agent_loop.py</code> đã bổ sung <code>from typing import Any</code> chưa?</p>
+</li>
+<li><p>[ ] File <code>requirements.txt</code> upstream đã thực hiện pin phiên bản cho MCP SDK chưa?</p>
+</li>
+<li><p>[ ] Odysseus đã chuyển đổi mã nguồn sang hỗ trợ MCP SDK v2.x chưa?</p>
+</li>
+<li><p>[ ] Odysseus có bổ sung cờ chính thức (official environment flag) để tắt Browser MCP chưa?</p>
+</li>
+<li><p>[ ] Tính tương thích API giữa <code>chromadb-client</code> và <code>chromadb</code> server khi nâng cấp phiên bản.</p>
+</li>
+<li><p>[ ] Constructor của FastEmbed có thay đổi cách nhận tham số cấu hình <code>threads</code> không?</p>
+</li>
+<li><p>[ ] Cập nhật của <code>proot-distro</code> liên quan đến cơ chế xử lý <code>seccomp</code> hoặc <code>ptrace</code>.</p>
+</li>
+<li><p>[ ] Khả năng tương thích của base image <code>debian:bookworm-slim</code> theo thời gian.</p>
+</li>
+</ul>
+]]></content:encoded></item><item><title><![CDATA[Cài OpenCodex trên Termux Android]]></title><description><![CDATA[Biến điện thoại của bạn thành 1 api server local, phục vụ cho những tham vọng lớn lao.]]></description><link>https://hn.dh6k.vip/opencodex-on-termux-android</link><guid isPermaLink="true">https://hn.dh6k.vip/opencodex-on-termux-android</guid><category><![CDATA[termux]]></category><category><![CDATA[Termux installation ]]></category><category><![CDATA[codex]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sun, 02 Aug 2026 10:38:24 GMT</pubDate><content:encoded><![CDATA[<p>Ý tưởng: tôi</p>
+<p>Hành văn: GPT-5.6-Terra và GPT-5.6-Sol (mức high và xhigh, chạy qua Codex, mở rộng qua Brave Leo AI byom qua Opencodex trên máy tính)</p>
+<h2>Lời mở đầu</h2>
+<p>Chạy OpenCodex trên Android bằng Termux làm được, nhưng nó không phải kiểu “cài một lệnh rồi quên luôn” như trên máy Linux đầy đủ. Android có sandbox riêng, dùng libc Bionic thay vì glibc, quản lý tiến trình nền khá gắt, và có thể giết app bất cứ lúc nào để tiết kiệm pin. Vì vậy, nếu chỉ bê nguyên hướng dẫn Linux sang rồi cầu nguyện, rất dễ gặp một mớ lỗi mơ hồ kiểu <code>EACCES</code>, <code>Exec format error</code>, hoặc service vừa chạy đã chết.</p>
+<p>Bài này đi theo hướng thực dụng: cài từng lớp một, kiểm tra từng lớp hoạt động rồi mới ghép chúng lại. Thứ tự là:</p>
+<ol>
+<li><p>Chuẩn bị môi trường Termux đúng cách.</p>
+</li>
+<li><p>Cài Node, Codex CLI và các công cụ cần thiết.</p>
+</li>
+<li><p>Cài OpenCodex (<code>ocx</code>) và chạy foreground trước.</p>
+</li>
+<li><p>Kiểm tra endpoint, token, port và runtime.</p>
+</li>
+<li><p>Chỉ khi foreground chạy ổn mới đưa nó vào <code>termux-services</code>.</p>
+</li>
+<li><p>Nếu thực sự cần, cấu hình tự chạy qua Termux:Boot.</p>
+</li>
+</ol>
+<p>Đừng nhảy thẳng tới phần service khi chưa chạy được <code>ocx start</code> trong terminal. Service không sửa được lỗi nền; nó chỉ làm lỗi khó nhìn hơn. Một thiết kế hơi ngáo nhưng rất phổ biến: biến một chương trình chưa chạy nổi thành daemon rồi mất cả log lẫn kiên nhẫn.</p>
+<p>Hướng dẫn này giữ toàn bộ project, config và executable trong <code>$HOME</code> của Termux. Đây là filesystem Linux riêng của app, có quyền Unix, symlink và khả năng thực thi bình thường hơn. Không dùng shared storage Android làm thư mục làm việc chính.</p>
+<hr />
+<h2>Phạm vi và lưu ý hỗ trợ</h2>
+<p><a href="https://github.com/lidge-jun/opencodex">OpenCodex</a> là proxy/dashboard cho Codex. README hiện liệt kê service manager cho macOS (<code>launchd</code>), Linux (<code>systemd</code> user unit) và Windows (Task Scheduler), nhưng <strong>không liệt kê Termux/Android</strong>.</p>
+<p>Điều đó không có nghĩa là không thể chạy trên Android. Nó chỉ có nghĩa là đây không phải môi trường được upstream cam kết hỗ trợ. Khi có lỗi liên quan Android, Bionic, process nền hoặc lifecycle của app, không nên mặc định rằng <code>ocx service install</code> sẽ giải quyết được.</p>
+<p>Bài này dùng <code>termux-services</code> làm lớp quản lý service native cho Termux, và tùy chọn dùng Termux:Boot để bật service sau khi Android khởi động.</p>
+<p><a href="https://timharbakon.com/openai-codex-cli-android-termux/">Codex CLI trên Android/Termux</a> cần môi trường Termux, Node và công cụ build phù hợp. <a href="https://github.com/Happ1ness-dev/bun-termux">Bun Termux</a> cung cấp Bun đã biên dịch cho Android/Bionic.</p>
+<p>OpenCodex có thể đã kèm runtime Bun trong bản phát hành. Vì vậy, <strong>không mặc định rằng máy nào cũng phải cài Bun riêng</strong>. Chỉ cài <code>bun-termux</code> khi log thực tế cho thấy Bun đi kèm không chạy được hoặc vướng khác biệt Bionic/glibc.</p>
+<hr />
+<h2>Chuẩn bị</h2>
+<p>Cài Termux từ <a href="https://f-droid.org/packages/com.termux/">F-Droid</a> hoặc nguồn chính thức mà bạn tin cậy. Không trộn APK Termux, plugin và add-on từ các nguồn ký khác nhau. Ví dụ, cài Termux từ một nơi rồi lấy Termux:Boot từ nơi khác là cách khá hiệu quả để tạo lỗi quyền mà nhìn vào không hiểu nó đến từ đâu.</p>
+<p>Nếu muốn tự chạy service sau khi khởi động điện thoại, cài thêm <strong>Termux:Boot</strong> từ cùng nguồn ký với Termux.</p>
+<p>Trước khi làm tiếp, nên:</p>
+<ul>
+<li><p>cấp quyền thông báo/chạy nền cho Termux nếu Android yêu cầu;</p>
+</li>
+<li><p>tắt tối ưu pin cho Termux nếu ROM thường xuyên giết tiến trình nền;</p>
+</li>
+<li><p>dùng mạng ổn định vì npm, GitHub và mirror package đôi lúc không thân thiện lắm;</p>
+</li>
+<li><p>không để lộ token admin trong ảnh chụp màn hình, log, issue hoặc repository Git.</p>
+</li>
+</ul>
+<p>Mở Termux, cập nhật package và tạo thư mục project riêng:</p>
+<pre><code class="language-bash">pkg update &amp;&amp; pkg upgrade
+mkdir -p "$HOME/projects"
+cd "$HOME/projects"
+</code></pre>
+<p>Không đặt project trong <code>/sdcard</code>, <code>~/storage/shared</code> hoặc bất kỳ thư mục shared storage nào của Android.</p>
+<p>Lý do không chỉ là quyền ghi. Shared storage thường không có semantics Unix đầy đủ: symlink có thể hỏng, permission bị giả lập, executable có thể bị chặn bởi <code>noexec</code>, và các tool như npm/Bun đôi khi cần những thứ đó để chạy script hoặc tạo file tạm. Đây là chỗ Android khiến Linux giả vờ biến thành ổ USB, rất duyên dáng.</p>
+<hr />
+<h2>Cài công cụ nền</h2>
+<p>Cài Node LTS, Git, curl, ripgrep và OpenSSL:</p>
+<pre><code class="language-bash">pkg install nodejs-lts git curl ripgrep openssl
+node --version
+npm --version
+git --version
+curl --version
+rg --version
+openssl version
+</code></pre>
+<p>Các lệnh kiểm tra version không phải nghi thức cho vui. Chúng xác nhận rằng:</p>
+<ul>
+<li><p>Node và npm đã nằm trong <code>PATH</code>;</p>
+</li>
+<li><p>Git có thể dùng để lấy source khi cần;</p>
+</li>
+<li><p>curl hoạt động để tải installer hoặc script;</p>
+</li>
+<li><p>ripgrep (<code>rg</code>) có sẵn để tìm log/config nhanh;</p>
+</li>
+<li><p>OpenSSL có thể sinh token ngẫu nhiên.</p>
+</li>
+</ul>
+<p>Node LTS là lựa chọn an toàn hơn cho Codex CLI. Những bản Node quá mới đôi khi làm native dependency hoặc script hậu cài đặt vỡ kiểu rất mất thời gian.</p>
+<p>Nếu <code>nodejs-lts</code> không có trong mirror hiện tại hoặc <code>pkg install</code> báo package not found, đổi mirror:</p>
+<pre><code class="language-bash">termux-change-repo
+pkg update
+</code></pre>
+<p>Sau đó thử cài lại. Đừng đi tải file <code>.deb</code> bừa trên web rồi dùng <code>dpkg</code> ép cài. Dependency mismatch trên Termux có thể biến thành mớ package nửa sống nửa chết.</p>
+<hr />
+<h2>Cài Codex CLI</h2>
+<p>Dùng gói cộng đồng dành cho Termux:</p>
+<pre><code class="language-bash">npm install -g @mmmbuto/codex-cli-termux
+codex --version
+</code></pre>
+<p>Gói này là <strong>bên thứ ba</strong>, không phải package OpenAI chính thức. Vì nó có quyền chạy trong shell của bạn và có thể xử lý credential, nên đọc repository, kiểm tra package/version và chỉ đăng nhập trong môi trường bạn tin cậy.</p>
+<p>Không dán API key, session token hay token admin vào:</p>
+<ul>
+<li><p>issue GitHub;</p>
+</li>
+<li><p>pastebin công khai;</p>
+</li>
+<li><p>ảnh chụp terminal;</p>
+</li>
+<li><p>file <code>.md</code> được commit;</p>
+</li>
+<li><p>log service.</p>
+</li>
+</ul>
+<p>Nếu <code>codex --version</code> báo không tìm thấy lệnh, xem phần xử lý PATH bên dưới. npm global trên Termux đôi lúc cài đúng nhưng shell hiện tại chưa trỏ tới thư mục bin đúng.</p>
+<hr />
+<h2>Cài Bun Termux khi cần</h2>
+<p>Trước hết, thử OpenCodex với runtime đi kèm package. Nếu nó chạy thì không cần cài Bun riêng. Cài thêm một runtime chỉ để “chắc ăn” thường tạo ra hai binary cùng tên, hai đường PATH khác nhau, rồi sau đó không biết process đang dùng cái nào. Tự bắn vào chân nhưng có dependency manager hỗ trợ.</p>
+<p>Khi log cho thấy Bun đi kèm không tương thích Android/Bionic, ưu tiên dùng manager theo hướng dẫn của <a href="https://github.com/Happ1ness-dev/bun-termux">bun-termux</a>:</p>
+<pre><code class="language-bash">curl -fsSL "https://raw.githubusercontent.com/Happ1ness-dev/bun-termux/main/helper_scripts/bun-termux-manager" | bash -s install
+</code></pre>
+<p>Mở shell Termux mới rồi kiểm tra:</p>
+<pre><code class="language-bash">command -v bun
+bun --version
+</code></pre>
+<p><code>command -v bun</code> giúp biết chính xác shell đang dùng binary nào. Nếu nó trỏ tới một đường dẫn lạ hoặc một bản cài cũ, cần dọn PATH trước khi debug sâu hơn.</p>
+<p>Fallback thủ công được tài liệu hóa trong repository <code>bun-termux</code>:</p>
+<pre><code class="language-bash">pkg install git curl clang make glibc-repo python
+pkg install glibc-runner
+touch ~/.bashrc
+curl -fsSL https://bun.sh/install | bash
+source ~/.bashrc
+git clone https://github.com/Happ1ness-dev/bun-termux "$HOME/projects/bun-termux"
+cd "$HOME/projects/bun-termux"
+make &amp;&amp; make install
+bun --version
+bun --bun x cowsay
+</code></pre>
+<p>Đoạn này có nhiều lớp vì Bun upstream vốn nhắm chủ yếu vào môi trường glibc, trong khi Android dùng Bionic. <code>bun-termux</code> tồn tại để lấp khoảng cách đó.</p>
+<p>Nếu build lỗi, đừng vội chạy lại tất cả bằng <code>sudo</code>; Termux bình thường không dùng <code>sudo</code>, và quyền root không phải thuốc chữa runtime incompatibility.</p>
+<hr />
+<h2>Cài và khởi chạy OpenCodex</h2>
+<p>Cài package OpenCodex global:</p>
+<pre><code class="language-bash">npm install -g @bitkyc08/opencodex
+command -v ocx
+ocx --version
+ocx init
+</code></pre>
+<p>Ba lệnh đầu kiểm tra ba chuyện khác nhau:</p>
+<ul>
+<li><p><code>npm install -g</code>: package có được cài không;</p>
+</li>
+<li><p><code>command -v ocx</code>: shell có nhìn thấy executable không;</p>
+</li>
+<li><p><code>ocx --version</code>: executable có thực sự chạy không;</p>
+</li>
+<li><p><code>ocx init</code>: OpenCodex có tạo/khởi tạo state theo đúng cách không.</p>
+</li>
+</ul>
+<p>Sau đó tạo token admin ngẫu nhiên. Token này không phải mật khẩu trang trí; ai có nó có thể có quyền quản trị tùy cách OpenCodex triển khai. Đừng dùng chuỗi dễ đoán kiểu <code>123456</code>, <code>admin</code>, hay tên con mèo nhà bạn.</p>
+<pre><code class="language-bash">export OPENCODEX_ADMIN_AUTH_TOKEN="$(openssl rand -hex 32)"
+ocx start --port 10100
+</code></pre>
+<p>Lệnh <code>openssl rand -hex 32</code> tạo 32 byte ngẫu nhiên, biểu diễn thành 64 ký tự hex.</p>
+<p>Trong lần chạy đầu, dùng foreground thay vì service. Khi đó log hiện trực tiếp trên terminal, rất tiện để thấy runtime lỗi ở đâu.</p>
+<p>Nếu start thành công, mở trình duyệt trên chính điện thoại tại:</p>
+<pre><code class="language-text">http://127.0.0.1:10100/#/dashboard
+</code></pre>
+<p><code>127.0.0.1</code> nghĩa là chỉ máy Android đó truy cập được. Đây là lựa chọn an toàn mặc định. Không đổi sang <code>0.0.0.0</code> chỉ vì muốn truy cập từ máy khác trong LAN, trừ khi bạn hiểu rõ OpenCodex đang expose những endpoint gì và đã có lớp bảo vệ phù hợp.</p>
+<hr />
+<h2>Kiểm tra sau cài</h2>
+<p>Giữ shell đang chạy OpenCodex, mở một tab Termux khác rồi chạy:</p>
+<pre><code class="language-bash">ocx status
+ocx doctor
+ocx health
+curl -i http://127.0.0.1:10100/healthz
+curl -i http://127.0.0.1:10100/api/health
+</code></pre>
+<p>Mục tiêu ở đây là tách lỗi theo tầng:</p>
+<ul>
+<li><p><code>ocx status</code>, <code>doctor</code>, <code>health</code>: kiểm tra từ góc nhìn CLI;</p>
+</li>
+<li><p><code>curl /healthz</code>: kiểm tra process có đang lắng nghe HTTP không;</p>
+</li>
+<li><p><code>curl /api/health</code>: kiểm tra endpoint API cụ thể nếu bản đó hỗ trợ.</p>
+</li>
+</ul>
+<p><code>/healthz</code> thường là endpoint nhẹ để xác nhận proxy còn sống.</p>
+<p><code>/api/health</code> chỉ nên xem là phép thử troubleshooting. Tùy bản phát hành, endpoint này có thể yêu cầu auth hoặc không tồn tại. Không tự động nhét admin token vào header nếu chưa đọc tài liệu của phiên bản đang dùng.</p>
+<p>Một số bản CLI có thể dùng cú pháp start khác. Nếu <code>--port</code> không được nhận diện, kiểm tra trực tiếp:</p>
+<pre><code class="language-bash">ocx start --help
+</code></pre>
+<p>Đừng đoán cờ CLI. CLI đổi option nhanh hơn người ta sửa blog hướng dẫn.</p>
+<hr />
+<h2>Debug và xử lý lỗi</h2>
+<h3>Mirror, package và PATH</h3>
+<p>Nếu <code>pkg</code> tải lỗi, timeout hoặc không tìm thấy package, đổi mirror:</p>
+<pre><code class="language-bash">termux-change-repo
+pkg update
+</code></pre>
+<p>Sau khi cài npm global, nếu gặp:</p>
+<pre><code class="language-text">ocx: command not found
+</code></pre>
+<p>kiểm tra npm global prefix:</p>
+<pre><code class="language-bash">npm prefix -g
+export PATH="$(npm prefix -g)/bin:$PATH"
+command -v ocx
+</code></pre>
+<p>Nếu cách này chạy được, ghi dòng <code>export PATH=...</code> vào <code>~/.profile</code> hoặc file shell startup bạn thực sự dùng.</p>
+<p>Đừng thêm bừa vào cả <code>.bashrc</code>, <code>.zshrc</code>, <code>.profile</code>, <code>.bash_profile</code> rồi hy vọng một cái có tác dụng. Trước hết xác định shell hiện tại:</p>
+<pre><code class="language-bash">echo "$SHELL"
+ps -p $$ -o comm=
+</code></pre>
+<hr />
+<h3>Shared storage, symlink và <code>EACCES</code></h3>
+<p>Lỗi kiểu:</p>
+<ul>
+<li><p><code>EACCES</code></p>
+</li>
+<li><p><code>permission denied</code></p>
+</li>
+<li><p><code>operation not permitted</code></p>
+</li>
+</ul>
+<p>thường do một trong các nguyên nhân sau:</p>
+<ol>
+<li><p>project/config nằm trong shared storage;</p>
+</li>
+<li><p>file token có quyền quá rộng hoặc quá hẹp;</p>
+</li>
+<li><p>executable/script mất bit thực thi;</p>
+</li>
+<li><p>app Android hoặc filesystem chặn thao tác kiểu Unix.</p>
+</li>
+</ol>
+<p>Kiểm tra thư mục chính:</p>
+<pre><code class="language-bash">echo "$HOME"
+ls -ld "$HOME" "$HOME/.opencodex"
+</code></pre>
+<p>Nếu path trỏ vào <code>/data/data/com.termux/files/home/...</code> thì đó là home Termux bình thường. Nếu bạn thấy <code>/sdcard</code>, <code>/storage/emulated/0</code> hoặc <code>~/storage/shared</code>, chuyển project và config về <code>$HOME</code>.</p>
+<p>Nếu <code>/api/health</code> lỗi <code>EACCES</code> nhưng <code>/healthz</code> vẫn sống, có khả năng endpoint admin đang cố đọc token/config không đúng quyền. Thử đặt token qua biến môi trường rồi khởi động lại:</p>
+<pre><code class="language-bash">export OPENCODEX_ADMIN_AUTH_TOKEN="$(openssl rand -hex 32)"
+ocx start --port 10100
+</code></pre>
+<p>Chỉ xóa token cũ khi hiểu rõ state hiện tại. Nếu cần xóa token file theo phạm vi hẹp:</p>
+<pre><code class="language-bash">rm -f "$HOME"/.opencodex/*.admin-token*
+</code></pre>
+<p>Lệnh này không thể hoàn tác. Nếu token cũ đang được dùng ở nơi khác, mọi client sử dụng token đó sẽ mất quyền truy cập.</p>
+<hr />
+<h3>Bionic, glibc, Bun và npm script</h3>
+<p>Android dùng <strong>Bionic libc</strong>, không phải glibc. Vì vậy binary được build cho Linux desktop có thể không chạy được trên Android dù kiến trúc CPU đều là ARM64.</p>
+<p>Các dấu hiệu phổ biến:</p>
+<ul>
+<li><p><code>No such file or directory</code> dù file có tồn tại;</p>
+</li>
+<li><p><code>Exec format error</code>;</p>
+</li>
+<li><p>lỗi dynamic linker;</p>
+</li>
+<li><p>Bun crash ngay khi chạy;</p>
+</li>
+<li><p>native addon Node không load được.</p>
+</li>
+</ul>
+<p>Nếu gặp các lỗi đó:</p>
+<ol>
+<li><p>kiểm tra binary đang chạy là gì bằng <code>command -v</code>;</p>
+</li>
+<li><p>đọc log OpenCodex;</p>
+</li>
+<li><p>thử <code>bun --version</code>;</p>
+</li>
+<li><p>chỉ cài <code>bun-termux</code> nếu log cho thấy runtime Bun là điểm vỡ.</p>
+</li>
+</ol>
+<p>Không chạy <code>npm run</code> trong thư mục package global chỉ để thử vận may. Script npm có thể giả định môi trường build, source tree hoặc dependency development mà bản global không có. Dùng các interface công khai trước:</p>
+<pre><code class="language-bash">ocx --help
+ocx doctor
+ocx start --help
+</code></pre>
+<hr />
+<h3>Port đã bị chiếm</h3>
+<p>Nếu OpenCodex báo không bind được port hoặc browser không vào được dashboard, kiểm tra port <code>10100</code>:</p>
+<pre><code class="language-bash">curl -i http://127.0.0.1:10100/healthz
+ss -ltnp | rg ':10100'
+ocx start --port 10101
+</code></pre>
+<p>Nếu port <code>10101</code> chạy được, nghĩa là port <code>10100</code> đang bị process khác chiếm hoặc có instance OpenCodex cũ còn sống.</p>
+<p>Khi đổi port, cần cập nhật đồng bộ:</p>
+<ul>
+<li><p>URL dashboard;</p>
+</li>
+<li><p>script <code>termux-services</code>;</p>
+</li>
+<li><p>bookmark browser;</p>
+</li>
+<li><p>reverse proxy hoặc tunnel, nếu bạn có dùng.</p>
+</li>
+</ul>
+<p>Đừng giết process bừa chỉ vì nó đang dùng port. Đầu tiên nhìn PID và command trong output <code>ss</code>; có thể đó chính là instance OpenCodex đang chạy từ tab Termux khác.</p>
+<hr />
+<h3>Token và bảo mật</h3>
+<p>Thay vì export token mỗi lần trong shell, có thể lưu token vào file riêng với permission chặt:</p>
+<pre><code class="language-bash">mkdir -p "$HOME/.config/opencodex"
+openssl rand -hex 32 &gt; "$HOME/.config/opencodex/admin-token"
+chmod 600 "$HOME/.config/opencodex/admin-token"
+</code></pre>
+<p><code>chmod 600</code> nghĩa là chỉ user Termux hiện tại được đọc và ghi file đó.</p>
+<p>Không hard-code token trong script được commit Git. Nếu script boot hoặc service bị lộ, token sẽ đi theo luôn. Đây là lỗi bảo mật rất cơ bản nhưng vẫn xuất hiện khắp nơi vì người ta thích “cho tiện”, rồi tiện luôn cho người khác đăng nhập.</p>
+<p>Mặc định chỉ bind vào <code>127.0.0.1</code>. Nếu cần truy cập từ máy khác:</p>
+<ul>
+<li><p>ưu tiên VPN riêng như Tailscale/WireGuard;</p>
+</li>
+<li><p>hoặc SSH tunnel;</p>
+</li>
+<li><p>hoặc reverse proxy có TLS và auth;</p>
+</li>
+<li><p>không expose cổng admin trực tiếp ra Internet nếu chưa hiểu rõ bề mặt tấn công.</p>
+</li>
+</ul>
+<hr />
+<h3>Log và Android giết tiến trình nền</h3>
+<p>Chạy foreground là cách tốt nhất để debug ban đầu vì log ở ngay trước mặt.</p>
+<p>Sau khi chạy dưới <code>termux-services</code>, xem trạng thái bằng:</p>
+<pre><code class="language-bash">sv status opencodex
+</code></pre>
+<p>Log được lưu theo cấu hình service ở:</p>
+<pre><code class="language-text">$HOME/.local/state/opencodex/log
+</code></pre>
+<p>Android vẫn có thể giết process nền, đặc biệt trên ROM có battery manager hung hãn. Battery optimization trên nhiều máy thực chất là “đóng app bất kể nó đang làm gì rồi gọi đó là tối ưu”.</p>
+<p>Các biện pháp giảm nguy cơ:</p>
+<ul>
+<li><p>tắt battery optimization cho Termux;</p>
+</li>
+<li><p>mở Termux ít nhất một lần sau reboot;</p>
+</li>
+<li><p>dùng Termux:Boot nếu cần;</p>
+</li>
+<li><p>dùng <code>termux-wake-lock</code> khi thật sự cần chạy lâu.</p>
+</li>
+</ul>
+<p>Wake lock làm tăng tiêu thụ pin. Nó không phải phép miễn tử cho process; Android vẫn có thể kill app trong các tình huống tài nguyên căng hoặc chính sách ROM đặc biệt.</p>
+<hr />
+<h2>Service native Termux</h2>
+<p>Chỉ cấu hình service sau khi <code>ocx start --port 10100</code> chạy ổn ở foreground.</p>
+<p>Cài <code>termux-services</code>:</p>
+<pre><code class="language-bash">pkg install termux-services
+</code></pre>
+<p>Sau khi cài, mở shell Termux mới để profile service được nạp đúng cách.</p>
+<p>Tạo service dưới <code>$HOME/.config/sv/opencodex</code>, sau đó symlink nó vào thư mục service của Termux. Token không nằm trực tiếp trong script mà được đọc từ file riêng:</p>
+<pre><code class="language-bash">mkdir -p "$HOME/.config/sv/opencodex/log"
+
+cat &gt; "$HOME/.config/sv/opencodex/run" &lt;&lt;'SH'
+#!/data/data/com.termux/files/usr/bin/sh
+set -eu
+
+export PATH="$PREFIX/bin:$PATH"
+
+TOKEN_FILE="$HOME/.config/opencodex/admin-token"
+test -r "$TOKEN_FILE"
+
+export OPENCODEX_ADMIN_AUTH_TOKEN="$(cat "$TOKEN_FILE")"
+
+OCX="$PREFIX/bin/ocx"
+test -x "$OCX" || {
+  echo "Không tìm thấy ocx tại $OCX" &gt;&amp;2
+  exit 127
+}
+
+exec "$OCX" start --port 10100
+SH
+
+cat &gt; "$HOME/.config/sv/opencodex/log/run" &lt;&lt;'SH'
+#!/data/data/com.termux/files/usr/bin/sh
+mkdir -p "$HOME/.local/state/opencodex/log"
+exec svlogd "$HOME/.local/state/opencodex/log"
+SH
+
+chmod 700 "$HOME/.config/sv/opencodex/run" \
+          "$HOME/.config/sv/opencodex/log/run"
+
+chmod 600 "$HOME/.config/opencodex/admin-token"
+
+ln -sfn "$HOME/.config/sv/opencodex" \
+        "$PREFIX/var/service/opencodex"
+
+source "$PREFIX/etc/profile.d/start-services.sh"
+
+sv up opencodex
+sv status opencodex
+</code></pre>
+<p>Cấu trúc này có vài điểm quan trọng:</p>
+<ul>
+<li><p><code>run</code> là process chính của service;</p>
+</li>
+<li><p><code>exec</code> thay shell bằng process <code>ocx</code>, giúp supervisor theo dõi đúng PID;</p>
+</li>
+<li><p><code>set -eu</code> khiến script fail sớm nếu biến lỗi hoặc command thất bại;</p>
+</li>
+<li><p><code>test -r "$TOKEN_FILE"</code> ngăn service chạy trong trạng thái thiếu token;</p>
+</li>
+<li><p><code>svlogd</code> ghi log thành file;</p>
+</li>
+<li><p>symlink vào <code>$PREFIX/var/service</code> là thứ để <code>runsv</code> nhìn thấy service.</p>
+</li>
+</ul>
+<p>Điều khiển lifecycle service:</p>
+<pre><code class="language-bash">source "$PREFIX/etc/profile.d/start-services.sh"
+
+sv down opencodex
+sv up opencodex
+sv restart opencodex
+sv status opencodex
+</code></pre>
+<p>Đây là tích hợp theo cơ chế native của Termux. Nó <strong>không phải</strong> bằng chứng rằng <code>ocx service install</code> được upstream OpenCodex hỗ trợ chính thức trên Android.</p>
+<p>Nếu service liên tục restart, đừng chỉ nhìn <code>sv status</code>. Đọc log:</p>
+<pre><code class="language-bash">tail -n 100 "$HOME/.local/state/opencodex/log/current"
+</code></pre>
+<p>Các nguyên nhân thường là:</p>
+<ul>
+<li><p><code>ocx</code> không nằm ở <code>$PREFIX/bin/ocx</code>;</p>
+</li>
+<li><p>token file không tồn tại hoặc không đọc được;</p>
+</li>
+<li><p>port 10100 đã bị chiếm;</p>
+</li>
+<li><p>Bun/runtime lỗi;</p>
+</li>
+<li><p>config OpenCodex lỗi sau cập nhật.</p>
+</li>
+</ul>
+<hr />
+<h2>Tự chạy bằng Termux:Boot</h2>
+<p>Sau khi service chạy ổn khi bạn tự mở Termux, mới thêm boot script. Termux:Boot không thay thế service manager; nó chỉ là cơ chế gọi service khi Android khởi động.</p>
+<p>Cài Termux:Boot từ cùng nguồn ký với Termux, mở app Termux:Boot một lần, rồi tạo script:</p>
+<pre><code class="language-bash">mkdir -p "$HOME/.termux/boot"
+
+cat &gt; "$HOME/.termux/boot/10-opencodex.sh" &lt;&lt;'SH'
+#!/data/data/com.termux/files/usr/bin/sh
+source "$PREFIX/etc/profile.d/start-services.sh"
+termux-wake-lock
+sv up opencodex
+SH
+
+chmod 700 "$HOME/.termux/boot/10-opencodex.sh"
+</code></pre>
+<p>Script này không tự chạy <code>ocx</code> trực tiếp. Nó chỉ bật service đã được định nghĩa sẵn. Cách đó tốt hơn vì toàn bộ config, log và restart behavior vẫn tập trung ở một nơi.</p>
+<p>Sau reboot, kiểm tra:</p>
+<pre><code class="language-bash">source "$PREFIX/etc/profile.d/start-services.sh"
+sv status opencodex
+curl -i http://127.0.0.1:10100/healthz
+</code></pre>
+<p>Nếu không tự chạy sau reboot, kiểm tra theo thứ tự:</p>
+<ol>
+<li><p>Termux:Boot đã được mở ít nhất một lần chưa;</p>
+</li>
+<li><p>Termux và Termux:Boot có cùng chữ ký/nguồn cài không;</p>
+</li>
+<li><p>Android có chặn background activity không;</p>
+</li>
+<li><p>script có executable không;</p>
+</li>
+<li><p>service có chạy thủ công được không;</p>
+</li>
+<li><p>log service nói gì.</p>
+</li>
+</ol>
+<hr />
+<h2>Cập nhật, gỡ và rollback</h2>
+<p>Trước khi cập nhật package global, xem package nào đang cũ:</p>
+<pre><code class="language-bash">npm outdated -g
+</code></pre>
+<p>Cập nhật OpenCodex và Codex CLI:</p>
+<pre><code class="language-bash">npm update -g @bitkyc08/opencodex @mmmbuto/codex-cli-termux
+ocx --version
+</code></pre>
+<p>Sau cập nhật, kiểm tra lại ít nhất:</p>
+<pre><code class="language-bash">ocx doctor
+ocx health
+curl -i http://127.0.0.1:10100/healthz
+</code></pre>
+<p>Cập nhật có thể đổi behavior CLI, runtime, cấu trúc config hoặc endpoint. Vì vậy, trước khi update, sao lưu config và token vào nơi riêng tư.</p>
+<p>Nếu bản mới lỗi, rollback về một version đã biết:</p>
+<pre><code class="language-bash">npm install -g @bitkyc08/opencodex@&lt;known-version&gt;
+</code></pre>
+<p>Thay <code>&lt;known-version&gt;</code> bằng version cụ thể bạn đã từng xác nhận hoạt động, ví dụ dạng <code>1.2.3</code>. Đừng rollback kiểu đoán mò; xem npm history hoặc log cài đặt cũ để biết bản ổn định trước đó.</p>
+<p>Để gỡ OpenCodex và service do bài này tạo:</p>
+<pre><code class="language-bash">source "$PREFIX/etc/profile.d/start-services.sh"
+
+sv down opencodex
+
+rm -f "$PREFIX/var/service/opencodex"
+
+rm -f "$HOME/.config/sv/opencodex/run" \
+      "$HOME/.config/sv/opencodex/log/run"
+
+rmdir "$HOME/.config/sv/opencodex/log" \
+      "$HOME/.config/sv/opencodex" 2&gt;/dev/null || true
+
+rm -f "$HOME/.termux/boot/10-opencodex.sh"
+
+rm -rf "$HOME/.local/state/opencodex/log"
+
+npm uninstall -g @bitkyc08/opencodex
+</code></pre>
+<p>Lệnh trên không chủ động xóa:</p>
+<ul>
+<li><p>token tại <code>$HOME/.config/opencodex/admin-token</code>;</p>
+</li>
+<li><p>state tại <code>~/.opencodex</code>;</p>
+</li>
+<li><p>Codex CLI;</p>
+</li>
+<li><p>Bun Termux;</p>
+</li>
+<li><p><code>termux-services</code>.</p>
+</li>
+</ul>
+<p>Đó là chủ ý. Gỡ application không đồng nghĩa với xóa mọi credential và config mà không hỏi. Nếu muốn xóa toàn bộ state OpenCodex, kiểm tra backup trước rồi mới xóa thủ công.</p>
+<p>Nếu CLI có <code>ocx uninstall</code>, đọc help trước:</p>
+<pre><code class="language-bash">ocx uninstall --help
+</code></pre>
+<p>Lệnh upstream có thể xóa state theo cách khác với phần service tự tạo trong bài này.</p>
+<hr />
+<h2>Khi nào không nên chạy trên Android</h2>
+<p>Chạy OpenCodex trên Termux phù hợp nếu bạn muốn:</p>
+<ul>
+<li><p>thử nghiệm cá nhân;</p>
+</li>
+<li><p>dùng dashboard cục bộ;</p>
+</li>
+<li><p>chạy tool nhẹ trên điện thoại/tablet;</p>
+</li>
+<li><p>học cách Termux, service và Android background hoạt động.</p>
+</li>
+</ul>
+<p>Nó kém phù hợp nếu bạn cần:</p>
+<ul>
+<li><p>uptime ổn định;</p>
+</li>
+<li><p>chạy liên tục nhiều ngày;</p>
+</li>
+<li><p>expose service ra Internet;</p>
+</li>
+<li><p>xử lý code hoặc token nhạy cảm;</p>
+</li>
+<li><p>log, backup và giám sát nghiêm túc;</p>
+</li>
+<li><p>môi trường production.</p>
+</li>
+</ul>
+<p>Với nhu cầu nhạy cảm hoặc cần độ ổn định, chạy OpenCodex trên Linux/macOS được hỗ trợ tốt hơn, rồi truy cập qua SSH tunnel hoặc VPN thường là kiến trúc ít đau đầu hơn. Android không phải server mini miễn phí; nó là điện thoại có một đống chính sách power management đang chờ phá kế hoạch của bạn.</p>
+<hr />
+<h2>Nguồn tham khảo</h2>
+<ul>
+<li><p><a href="https://github.com/lidge-jun/opencodex">OpenCodex repository</a></p>
+</li>
+<li><p><a href="https://timharbakon.com/openai-codex-cli-android-termux/">Codex CLI trên Termux Android</a></p>
+</li>
+<li><p><a href="https://github.com/Happ1ness-dev/bun-termux">bun-termux</a></p>
+</li>
+<li><p><a href="https://github.com/termux/termux-services">termux-services</a></p>
+</li>
+<li><p><a href="https://wiki.termux.dev/wiki/Termux%3ABoot">Termux:Boot</a></p>
+</li>
+<li><p><a href="https://termux.dev/">Termux</a></p>
+</li>
+</ul>
+]]></content:encoded></item><item><title><![CDATA[Cơ chế gacha mới của Blue Archive: thêm pity 100, nhưng đánh đổi quyền kiểm soát ở mốc 200]]></title><description><![CDATA[Khi endgame đòi hỏi roster rộng hơn, còn gacha lại thu hẹp khả năng xây đội]]></description><link>https://hn.dh6k.vip/blue-archive-new-gacha-mechanics-personal-thoughts</link><guid isPermaLink="true">https://hn.dh6k.vip/blue-archive-new-gacha-mechanics-personal-thoughts</guid><category><![CDATA[Gacha Games]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sun, 26 Jul 2026 18:29:01 GMT</pubDate><enclosure url="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/a0af61c4-4799-4869-b025-a4d6933e05aa.jpg" length="0" type="image/jpeg"/><content:encoded><![CDATA[<p>Ý tưởng: tôi</p>
+<p>Hành văn: gpt-5.6-sol (mức high, qua chat app, không phải work/codex). Đã có một chút chỉnh lí, bổ sung cho phù hợp.</p>
+<p>Khi một hệ thống gacha tặng thêm 40 lượt quay nhưng đồng thời lấy đi quyền tự chọn ở mốc 200, câu hỏi không còn đơn giản là “được thêm bao nhiêu”. Câu hỏi đúng hơn là: sau khi đã tiêu 24.000 Pyroxene, người chơi còn kiểm soát được kết quả đến mức nào?</p>
+<h2>Thông tin về cơ chế mới</h2>
+<p>Từ ngày 29/07/2026, hệ thống tuyển dụng của <em>Blue Archive</em> được thay đổi theo ba điểm lớn:</p>
+<ul>
+<li><p><strong>Recruitment Point</strong> và cơ chế dùng 200 điểm để đổi trực tiếp một pickup bị loại bỏ.</p>
+</li>
+<li><p><strong>Recruitment Charge</strong> được bổ sung: 100 Charge cho một học sinh 3★ với 50% khả năng là pickup; 200 Charge bảo đảm pickup của banner đang quay.</p>
+</li>
+<li><p><strong>Recruitment Count Rewards</strong> được thêm vào, trao vé 10 lượt có thời hạn và nguyên liệu theo tổng số lần tuyển dụng trong kỳ banner.</p>
+</li>
+</ul>
+<p>Nhìn riêng từng phần, cơ chế mới có vẻ hào phóng hơn. Người chơi có một mốc 50/50 ở lượt 100, được thêm vé quay, và Charge có thể được giữ lại theo điều kiện của từng nhóm banner.</p>
+<p>Nhưng thay đổi quan trọng nhất lại nằm ở một dòng khác:</p>
+<blockquote>
+<p>Khi nhận được pickup, Charge đã tích đến đúng vị trí nhân vật xuất hiện sẽ reset về 0.</p>
+</blockquote>
+<p>Đây là điểm khiến cơ chế mới trở nên dễ chịu hơn khi săn <strong>một mục tiêu</strong>, nhưng kém ổn định hơn rõ rệt khi săn <strong>hai hoặc ba nhân vật trong cùng một đợt</strong>.</p>
+<hr />
+<h2>Hai bộ đếm hoàn toàn khác nhau</h2>
+<p>Cơ chế mới sử dụng song song hai bộ đếm, và việc nhầm chúng với nhau sẽ khiến toàn bộ phép tính lệch khỏi đường ray.</p>
+<h3>Recruitment Charge</h3>
+<p>Recruitment Charge quyết định mốc pity:</p>
+<ul>
+<li><p>100 Charge: chắc chắn có một học sinh 3★, với 50% khả năng là pickup.</p>
+</li>
+<li><p>200 Charge: chắc chắn nhận pickup của banner đang quay.</p>
+</li>
+<li><p>Khi nhận pickup, Charge reset về 0 tại đúng vị trí nhân vật xuất hiện.</p>
+</li>
+<li><p>Các lượt còn lại phía sau pickup trong cùng một lần quay 10 tiếp tục cộng Charge mới.</p>
+</li>
+<li><p>Charge có thể được mang sang đợt pickup tiếp theo theo các nhóm banner tương ứng.</p>
+</li>
+</ul>
+<h3>Recruitment Count Rewards</h3>
+<p>Recruitment Count Rewards chỉ đếm tổng số lần quay trong <strong>kỳ pickup hiện tại</strong>:</p>
+<ul>
+<li><p>Được chia sẻ giữa các pickup chạy cùng kỳ.</p>
+</li>
+<li><p>Không được mang sang kỳ pickup tiếp theo.</p>
+</li>
+<li><p>Khi kỳ hiện tại kết thúc, cả số lượt lẫn trạng thái nhận thưởng đều reset.</p>
+</li>
+<li><p>Sang kỳ mới, phần thưởng “lần đầu” từ mốc 10 lại có thể nhận lại.</p>
+</li>
+<li><p>Archive Recruitment và một số hình thức tuyển dụng bằng sản phẩm trả phí không được tính.</p>
+</li>
+</ul>
+<p>Nói cách khác, Charge là pity dài hạn; Count Rewards là một đường thưởng theo mùa. Hai thứ đứng cạnh nhau trên giao diện nhưng sống hai cuộc đời riêng, rất đúng tinh thần những hệ thống do con người thiết kế.</p>
+<hr />
+<h2>Phần thưởng lượt quay thực sự bù được bao nhiêu?</h2>
+<p>Trong dãy phần thưởng lần đầu, vé 10 lượt có thời hạn xuất hiện tại các mốc:</p>
+<ul>
+<li><p>70</p>
+</li>
+<li><p>130</p>
+</li>
+<li><p>150</p>
+</li>
+<li><p>170</p>
+</li>
+<li><p>270</p>
+</li>
+<li><p>330</p>
+</li>
+<li><p>350</p>
+</li>
+<li><p>370</p>
+</li>
+</ul>
+<p>Như vậy:</p>
+<ul>
+<li><p>Trước mốc 200, người chơi nhận <strong>4 vé 10 lượt</strong>, tương đương 40 lượt quay.</p>
+</li>
+<li><p>Trước mốc 390, người chơi nhận tổng cộng <strong>8 vé 10 lượt</strong>, tương đương 80 lượt quay.</p>
+</li>
+</ul>
+<p>Sau mốc 390, hệ thống chuyển sang phần thưởng lặp từ 410 đến 590. Vòng lặp này có nguyên liệu, quà tặng, Keystone Fragment, Eligma và Secret Tech Note, nhưng <strong>không có thêm vé 10 lượt</strong>.</p>
+<p>Vì thế, đây không phải máy in vé vô hạn. Tám vé đầu là khoản hoàn trả một lần trong mỗi kỳ pickup; sang kỳ mới, dãy phần thưởng đầu lại reset và bắt đầu từ mốc 10.</p>
+<p>Với một người bỏ đúng 24.000 Pyroxene:</p>
+<pre><code class="language-text">24.000 Pyroxene = 200 lượt trả bằng đá
+4 vé 10 lượt trước mốc 200 = 40 lượt bổ sung
+Tổng lượt có thể thực hiện trong kỳ = 240
+</code></pre>
+<p>Phần phân tích dưới đây giả định các vé có thể được sử dụng ngay trên banner hợp lệ trong cùng kỳ và các lượt bằng vé tiếp tục được tính vào hệ thống tuyển dụng. Đây cũng là cách các bài công bố về phần thưởng mô tả tác động của bốn vé trước mốc 200.</p>
+<hr />
+<h2>Bài toán Magical Girl Heavy Caliber</h2>
+<img src="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/efa59b6a-55ed-4935-944a-9f0f329634d8.png" alt="" style="display:block;margin:0 auto" />
+
+<p>Giả sử một đợt rerun có ba mục tiêu:</p>
+<ul>
+<li><p><strong>Magical Suzumi</strong>, giới hạn.</p>
+</li>
+<li><p><strong>Magical Reisa</strong>, giới hạn.</p>
+</li>
+<li><p><strong>Magical Shimiko</strong>, nhân vật thường và có thể lệch ra sau.</p>
+</li>
+</ul>
+<p>Người chơi có:</p>
+<pre><code class="language-text">24.000 Pyroxene
+= 200 lượt bằng đá
+= tối đa 240 lượt thực tế sau bốn vé thưởng
+</code></pre>
+<p>Hai mức mục tiêu:</p>
+<ul>
+<li><p><strong>Kỳ vọng 1:</strong> lấy Suzumi, Reisa và Shimiko.</p>
+</li>
+<li><p><strong>Kỳ vọng 2:</strong> lấy Suzumi và Reisa; Shimiko có thể để lệch ra sau.</p>
+</li>
+</ul>
+<p>Ở đây, “kỳ vọng” chỉ có nghĩa là mục tiêu mong muốn, không phải giá trị kỳ vọng theo thống kê.</p>
+<hr />
+<h2>Cơ chế cũ: 200 điểm là tài sản của cả đợt banner</h2>
+<p>Trong cơ chế cũ, mỗi lượt quay tạo ra 1 Recruitment Point. Đạt 200 điểm, người chơi có thể đổi trực tiếp một pickup đang diễn ra.</p>
+<p>Điểm mạnh nhất là:</p>
+<blockquote>
+<p>Trúng pickup không làm mất số điểm đã tích.</p>
+</blockquote>
+<p>May mắn không chỉ đem đến một nhân vật. Nó còn làm mốc spark 200 trở nên mạnh hơn.</p>
+<h3>Suzumi xuất hiện sớm</h3>
+<p>Nếu Suzumi xuất hiện trong 100 lượt đầu, người chơi tiếp tục quay đến 200:</p>
+<ul>
+<li><p>Nếu Reisa tự xuất hiện trước mốc 200, dùng spark đổi Shimiko.</p>
+<ul>
+<li>Kết quả: đạt kỳ vọng 1.</li>
+</ul>
+</li>
+<li><p>Nếu Reisa không xuất hiện, dùng spark đổi Reisa.</p>
+<ul>
+<li>Kết quả: đạt kỳ vọng 2.</li>
+</ul>
+</li>
+</ul>
+<p>Chỉ cần một trong hai nhân vật giới hạn xuất hiện tự nhiên, nhân vật còn lại đã có thể được khóa bằng spark.</p>
+<h3>Suzumi xuất hiện ở lượt 190</h3>
+<p>Đây là tình huống cho thấy sức mạnh của hệ thống cũ rõ nhất:</p>
+<pre><code class="language-text">Lượt 190: Suzumi xuất hiện
+Recruitment Point vẫn là 190
+Quay thêm 10 lượt
+Đủ 200 điểm và đổi Reisa
+</code></pre>
+<p>Kết quả:</p>
+<pre><code class="language-text">200 lượt = Suzumi + Reisa
+</code></pre>
+<p>Pickup đến muộn vẫn là một kết quả rất tốt. Nó không phá hủy tiến độ đã tích.</p>
+<h3>Hai nhân vật xuất hiện tự nhiên</h3>
+<p>Nếu hai trong ba nhân vật đã xuất hiện trong 200 lượt, spark được dùng để lấy người còn thiếu:</p>
+<ul>
+<li><p>Suzumi + Reisa → đổi Shimiko.</p>
+</li>
+<li><p>Suzumi + Shimiko → đổi Reisa.</p>
+</li>
+<li><p>Reisa + Shimiko → đổi Suzumi.</p>
+</li>
+</ul>
+<p>Kỳ vọng 1 vì thế không chỉ tồn tại trên lý thuyết. Nó là một kết quả mà người chơi có thể chủ động hoàn thiện bằng quyền lựa chọn ở mốc 200.</p>
+<h3>Không ai xuất hiện</h3>
+<p>Nếu toàn bộ 200 lượt đều không có mục tiêu mong muốn, người chơi vẫn được chọn một pickup.</p>
+<p>Đây không phải kết quả đẹp, nhưng ít nhất hệ thống không quyết định hộ người chơi rằng họ phải mang ai về.</p>
+<hr />
+<h2>Cơ chế mới: 40 lượt thêm không đồng nghĩa với một spark mới</h2>
+<p>Với cơ chế mới, 24.000 Pyroxene có thể tạo ra tối đa 240 lượt thực tế nhờ bốn vé 10 lượt.</p>
+<p>Nghe rất hấp dẫn. Nhưng 240 lượt quay và một quyền chọn ở mốc 200 là hai loại giá trị hoàn toàn khác nhau.</p>
+<p>Gọi <code>x</code> là vị trí Suzumi xuất hiện.</p>
+<p>Ngay tại lượt <code>x</code>:</p>
+<pre><code class="language-text">Charge → 0
+</code></pre>
+<p>Nếu pickup xuất hiện trong một lượt quay 10, các ô phía sau tiếp tục cộng Charge. Lượng Charge còn lại sau khi kết thúc lượt quay 10 đó là:</p>
+<pre><code class="language-text">Charge thừa = (10 - (x mod 10)) mod 10
+</code></pre>
+<p>Ví dụ:</p>
+<ul>
+<li><p>Suzumi ở lượt 93 → sau khi hoàn tất lượt 91–100 còn 7 Charge.</p>
+</li>
+<li><p>Suzumi ở lượt 99 → còn 1 Charge.</p>
+</li>
+<li><p>Suzumi ở lượt 100 → còn 0 Charge.</p>
+</li>
+</ul>
+<p>Dù còn vài Charge lẻ, mốc pity tiếp theo vẫn được tính từ đúng vị trí pickup:</p>
+<pre><code class="language-text">Mốc 50/50 tiếp theo = x + 100
+Mốc bảo đảm tiếp theo = x + 200
+</code></pre>
+<p>Với tổng ngân sách mới là 240 lượt:</p>
+<pre><code class="language-text">Có thể chạm 50/50 cho nhân vật thứ hai nếu x ≤ 140
+Có thể bảo đảm nhân vật thứ hai nếu x ≤ 40
+</code></pre>
+<p>Đây là hai ngưỡng quan trọng nhất của toàn bộ bài toán.</p>
+<hr />
+<h2>Trường hợp 1: Suzumi xuất hiện trong 40 lượt đầu</h2>
+<p>Nếu Suzumi xuất hiện tại <code>x ≤ 40</code>, người chơi còn ít nhất 200 lượt trong tổng ngân sách 240.</p>
+<p>Khi đó:</p>
+<pre><code class="language-text">x + 200 ≤ 240
+</code></pre>
+<p>Người chơi có thể bảo đảm Reisa sau khi Charge reset.</p>
+<p>Đây là vùng mà cơ chế mới thực sự hoạt động rất tốt: pickup đầu đến cực sớm, bốn vé thưởng đủ kéo tổng ngân sách lên 240, và hard pity thứ hai vẫn nằm trong tầm với.</p>
+<p>Tuy nhiên, vùng này chỉ kéo dài 40 lượt đầu. Sau đó, quyền bảo đảm bắt đầu biến mất.</p>
+<hr />
+<h2>Trường hợp 2: Suzumi xuất hiện từ lượt 41 đến 140</h2>
+<p>Nếu:</p>
+<pre><code class="language-text">41 ≤ x ≤ 140
+</code></pre>
+<p>người chơi không còn đủ 200 lượt để bảo đảm Reisa, nhưng vẫn đủ 100 lượt để chạm một mốc 50/50:</p>
+<pre><code class="language-text">x + 100 ≤ 240
+</code></pre>
+<p>Kết quả:</p>
+<ul>
+<li><p>Thắng 50/50 → đạt kỳ vọng 2.</p>
+</li>
+<li><p>Thua 50/50 → Reisa chỉ còn có thể tự xuất hiện trong số lượt còn lại.</p>
+</li>
+<li><p>Shimiko hầu như không có một con đường chủ động nào ngoài việc tự lệch ra.</p>
+</li>
+</ul>
+<p>So với cơ chế cũ:</p>
+<ul>
+<li><p>Cũ: Suzumi xuất hiện ở bất kỳ vị trí nào trước 200 → Reisa được khóa bằng spark.</p>
+</li>
+<li><p>Mới: Suzumi xuất hiện từ 41 đến 140 → Reisa chỉ được một mốc 50/50, không được bảo đảm.</p>
+</li>
+</ul>
+<p>Bốn vé thưởng đã nới rộng cánh cửa, nhưng không dựng lại chiếc cầu từng tồn tại ở mốc 200.</p>
+<hr />
+<h2>Trường hợp 3: Suzumi đến từ 50/50 ở lượt 100</h2>
+<p>Nếu Suzumi chính là kết quả thắng 50/50 tại lượt 100:</p>
+<ul>
+<li><p>Charge reset về 0.</p>
+</li>
+<li><p>Mốc 50/50 tiếp theo cho Reisa nằm ở lượt 200.</p>
+</li>
+<li><p>Sau đó người chơi còn tối đa 40 lượt bổ sung từ vé.</p>
+</li>
+</ul>
+<p>Nếu Reisa không xuất hiện tự nhiên trước lượt 200:</p>
+<ul>
+<li><p>Thắng 50/50 thứ hai → đạt kỳ vọng 2.</p>
+</li>
+<li><p>Thua → còn 40 lượt tự nhiên để tìm Reisa.</p>
+</li>
+<li><p>Không có bảo đảm cho Reisa trong ngân sách 240.</p>
+</li>
+</ul>
+<p>Nếu cả Suzumi và Reisa chỉ đến từ hai mốc 50/50, xác suất minh họa là:</p>
+<pre><code class="language-text">50% × 50% = 25%
+</code></pre>
+<p>Đây không phải xác suất tổng thể của toàn banner, vì nhân vật vẫn có thể xuất hiện tự nhiên ở các lượt khác. Nó chỉ cho thấy rằng hai mốc 100 liên tiếp không tạo ra một bảo đảm tương đương spark cũ.</p>
+<hr />
+<h2>Trường hợp 4: Suzumi xuất hiện từ lượt 141 trở đi</h2>
+<p>Nếu:</p>
+<pre><code class="language-text">x &gt; 140
+</code></pre>
+<p>người chơi còn ít hơn 100 lượt trong tổng ngân sách 240.</p>
+<p>Điều đó có nghĩa:</p>
+<ul>
+<li><p>Không thể chạm thêm mốc 50/50 cho Reisa.</p>
+</li>
+<li><p>Reisa chỉ có thể xuất hiện tự nhiên.</p>
+</li>
+<li><p>Kỳ vọng 2 không còn một con đường bảo hiểm.</p>
+</li>
+<li><p>Kỳ vọng 1 gần như hoàn toàn phụ thuộc vào chuỗi may mắn.</p>
+</li>
+</ul>
+<h3>Ví dụ: Suzumi xuất hiện ở lượt 190</h3>
+<p>Trong cơ chế cũ:</p>
+<pre><code class="language-text">190: ra Suzumi
+200: dùng spark đổi Reisa
+</code></pre>
+<p>Trong cơ chế mới:</p>
+<pre><code class="language-text">190: ra Suzumi, Charge reset
+Tổng ngân sách tối đa: 240
+Còn 50 lượt
+</code></pre>
+<p>Năm mươi lượt thêm tốt hơn mười lượt, nhưng vẫn không tạo ra mốc 100 Charge tiếp theo.</p>
+<p>Kết quả từng là “may mắn muộn nhưng vẫn đổi được người thứ hai” nay trở thành “có thêm 50 cơ hội và không có bảo hiểm”. Một bên là quyền quyết định; bên kia là thêm số lần tung xúc xắc.</p>
+<hr />
+<h2>Nếu Reisa xuất hiện sau Suzumi thì sao?</h2>
+<p>Gọi <code>y</code> là số lượt từ khi nhận Suzumi đến khi Reisa xuất hiện.</p>
+<p>Reisa xuất hiện ở lượt tổng:</p>
+<pre><code class="language-text">x + y
+</code></pre>
+<p>Charge lại reset về 0.</p>
+<p>Muốn chạm mốc 100 cho Shimiko trước khi hết 240 lượt:</p>
+<pre><code class="language-text">x + y + 100 ≤ 240
+</code></pre>
+<p>Tương đương:</p>
+<pre><code class="language-text">x + y ≤ 140
+</code></pre>
+<p>Muốn bảo đảm Shimiko:</p>
+<pre><code class="language-text">x + y + 200 ≤ 240
+</code></pre>
+<p>Tương đương:</p>
+<pre><code class="language-text">x + y ≤ 40
+</code></pre>
+<p>Nghĩa là để bảo đảm cả ba nhân vật bằng 24.000 Pyroxene và bốn vé thưởng, Suzumi và Reisa phải cùng xuất hiện cực sớm, với tổng vị trí của lần reset thứ hai không vượt quá lượt 40.</p>
+<p>Về mặt toán học, điều đó có thể xảy ra.</p>
+<p>Về mặt lập kế hoạch, nó gần như không phải một chiến lược.</p>
+<p>Kỳ vọng 1 vì thế không bị “xóa khỏi vũ trụ”, nhưng không còn là kết quả người chơi có thể chủ động hoàn thiện bằng một spark. Nó chủ yếu dựa vào việc hai hoặc ba mục tiêu tự xuất hiện đúng lúc.</p>
+<hr />
+<h2>Bốn vé 10 lượt đã thay đổi điều gì?</h2>
+<p>Phần thưởng mới không phải vô nghĩa. Nó cải thiện hệ thống theo ba cách thực tế:</p>
+<ol>
+<li><p><strong>Tăng số lượt quay thực tế</strong><br />24.000 Pyroxene có thể tạo ra tối đa 240 lượt thay vì chỉ 200.</p>
+</li>
+<li><p><strong>Tăng cơ hội kết thúc sớm</strong><br />Người chỉ săn một pickup có thêm mốc 50/50 ở 100 và nhiều lượt quay hơn.</p>
+</li>
+<li><p><strong>Hoàn lại tài nguyên theo từng kỳ</strong><br />Các mốc 10–390 reset sang kỳ pickup mới, nên người chơi có thể nhận lại phần thưởng lần đầu ở mỗi kỳ.</p>
+</li>
+</ol>
+<p>Nhưng bốn vé không khôi phục được ba thứ mà spark cũ từng bảo đảm:</p>
+<ul>
+<li><p>Quyền chọn nhân vật ở mốc 200.</p>
+</li>
+<li><p>Khả năng biến một pickup đến muộn thành pickup thứ hai.</p>
+</li>
+<li><p>Khả năng dùng hai lần trúng tự nhiên để hoàn thiện nhân vật thứ ba.</p>
+</li>
+</ul>
+<p>Nói cách khác:</p>
+<blockquote>
+<p>Phần thưởng lượt quay bù vào <strong>số lượng</strong>, nhưng không bù lại <strong>quyền kiểm soát</strong>.</p>
+</blockquote>
+<hr />
+<h2>So sánh trực tiếp hai cơ chế</h2>
+<table>
+<thead>
+<tr>
+<th>Tiêu chí</th>
+<th>Cơ chế cũ</th>
+<th>Cơ chế mới</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ngân sách 24.000 Pyroxene</td>
+<td>200 lượt</td>
+<td>Tối đa 240 lượt nhờ bốn vé thưởng</td>
+</tr>
+<tr>
+<td>Mốc giữa đường</td>
+<td>Không có</td>
+<td>100 Charge: 3★, 50% pickup</td>
+</tr>
+<tr>
+<td>Mốc bảo đảm một pickup</td>
+<td>200 lượt, được chọn</td>
+<td>200 Charge, pickup của banner đang quay</td>
+</tr>
+<tr>
+<td>Khi trúng pickup</td>
+<td>Điểm vẫn giữ nguyên</td>
+<td>Charge reset tại đúng vị trí pickup</td>
+</tr>
+<tr>
+<td>Pickup ở lượt 190</td>
+<td>Thêm 10 lượt để đổi người thứ hai</td>
+<td>Còn tối đa 50 lượt, không có pity tiếp theo</td>
+</tr>
+<tr>
+<td>Bảo đảm hai pickup</td>
+<td>Có, nếu một người tự xuất hiện trong 200 lượt</td>
+<td>Chỉ có nếu pickup đầu xuất hiện không muộn hơn lượt 40</td>
+</tr>
+<tr>
+<td>Lấy ba nhân vật cùng đợt</td>
+<td>Hai người tự rơi, spark người còn lại</td>
+<td>Phụ thuộc phần lớn vào nhiều lần tự rơi</td>
+</tr>
+<tr>
+<td>Quyền lựa chọn</td>
+<td>Cao</td>
+<td>Thấp hơn</td>
+</tr>
+<tr>
+<td>Số lượt quay</td>
+<td>Ít hơn</td>
+<td>Nhiều hơn</td>
+</tr>
+<tr>
+<td>Khả năng lập kế hoạch</td>
+<td>Tốt hơn</td>
+<td>Biến động hơn</td>
+</tr>
+<tr>
+<td>Săn một mục tiêu</td>
+<td>Ổn định nhưng không có pity 100</td>
+<td>Tốt hơn</td>
+</tr>
+<tr>
+<td>Săn nhiều mục tiêu</td>
+<td>Tốt hơn rõ rệt</td>
+<td>Bất lợi do reset Charge</td>
+</tr>
+</tbody></table>
+<hr />
+<h2>Khi endgame đòi hỏi roster rộng hơn</h2>
+<p>Cơ chế gacha không tồn tại trong chân không. Giá trị của nó phụ thuộc vào loại nội dung mà game yêu cầu người chơi xây dựng.</p>
+<p>Một đội hình tiêu chuẩn của <em>Blue Archive</em> gồm bốn STRIKER và hai SPECIAL. Các nội dung endgame như Total Assault, Grand Assault và Final Restriction Release đã khuyến khích hoặc trực tiếp yêu cầu người chơi duy trì nhiều đội hình, nhiều vai trò và nhiều lớp nâng cấp khác nhau.</p>
+<p>Chế độ <strong>Virtual Aptitude Test</strong> mới được công bố cho phép triển khai tối đa năm đội và trao nguyên liệu cho hệ thống nâng cấp <strong>Deep Thought Blossom</strong>. Hiện chưa đủ thông tin để khẳng định người chơi bắt buộc phải dùng đủ năm đội ở mọi mức thưởng, hoặc toàn bộ 30 vị trí phải là 30 học sinh không trùng nhau.</p>
+<img src="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/ad8d5bae-8773-4016-9e38-981085bd0a9b.png" alt="Nội dung endgame mới. Nguồn: X (@Blue_ArchiveJP)" style="display:block;margin:0 auto" />
+
+<img src="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/e29d2ea6-a8b1-40ca-8000-886dd38c25fb.png" alt="Chế độ nâng cấp mới. Nguồn: X (@Blue_ArchiveJP)" style="display:block;margin:0 auto" />
+
+<img src="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/5d9104b9-a255-4b47-a9e6-df9785c17ad6.png" alt="Hệ thống nâng cấp Deep Thought Blossom. Nguồn: X (@Blue_ArchiveJP)" style="display:block;margin:0 auto" />
+
+<p>Tuy vậy, hướng thiết kế đã khá rõ:</p>
+<blockquote>
+<p>Game đang tăng giá trị của một roster rộng, đúng lúc cơ chế gacha mới làm việc chủ động lấy nhiều pickup trong cùng kỳ kém ổn định hơn.</p>
+</blockquote>
+<p>Phần thưởng xếp hạng Total Assault hiện vẫn ở mức 1.200 Pyroxene cho Platinum và 1.000 cho Gold. Trong khi đó, số lượng nhân vật, banner và lớp nâng cấp tiếp tục mở rộng.</p>
+<img src="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/8a3142bb-6b5f-4d43-bf25-77807b70d18a.png" alt="Phần thưởng Total Assault. Nguồn: in-game, global server." style="display:block;margin:0 auto" />
+
+<h3>[Suy luận] Vòng lặp đối với người chơi mới</h3>
+<p>Nếu các mốc thưởng cao của nội dung mới thực sự yêu cầu nhiều đội độc lập, người chơi mới có thể rơi vào vòng lặp sau:</p>
+<pre><code class="language-text">Roster hẹp
+→ khó tiến sâu trong endgame
+→ nhận ít tài nguyên nâng cấp hơn
+→ khó xây roster rộng hơn
+→ khoảng cách với tài khoản cũ tiếp tục tăng
+</code></pre>
+<p>Cơ chế gacha mới không tự tạo ra vòng lặp này, nhưng nó có thể làm việc thu hẹp khoảng cách khó hơn vì người chơi mất công cụ chuyển một pickup tự nhiên thành một pickup khác bằng spark.</p>
+<h3>[Suy luận] Áp lực đối với người chơi lâu năm</h3>
+<p>Người chơi lâu năm có roster rộng hơn, nhưng cũng phải:</p>
+<ul>
+<li><p>duy trì nhiều đội hình hơn;</p>
+</li>
+<li><p>đầu tư vào nhiều lớp nâng cấp hơn;</p>
+</li>
+<li><p>tiếp tục theo dõi các pickup tối ưu cho từng nội dung;</p>
+</li>
+<li><p>chấp nhận việc một pickup đến muộn có thể reset gần toàn bộ tiến độ Charge.</p>
+</li>
+</ul>
+<p>Với họ, vấn đề không phải thiếu nhân vật tuyệt đối, mà là chi phí duy trì một roster cạnh tranh ngày càng lớn.</p>
+<hr />
+<h2>Những điểm trong giả thuyết ban đầu vẫn đúng</h2>
+<p>Sau khi tính thêm bốn vé 10 lượt trước mốc 200, các kết luận sau vẫn giữ nguyên:</p>
+<ol>
+<li><p><strong>Cơ chế mới làm việc bảo đảm nhiều pickup trong cùng một đợt khó hơn.</strong></p>
+</li>
+<li><p><strong>Pickup xuất hiện càng muộn, lượng Charge bị mất càng lớn.</strong></p>
+</li>
+<li><p><strong>Một pickup ở lượt 190 vẫn tốt hơn không có gì, nhưng không còn mở khóa nhân vật thứ hai như spark cũ.</strong></p>
+</li>
+<li><p><strong>Kỳ vọng lấy Suzumi, Reisa và Shimiko không còn là kết quả có thể chủ động hoàn thiện bằng 24.000 Pyroxene.</strong></p>
+</li>
+<li><p><strong>Trong cấu trúc banner đôi hoặc banner ba, cơ chế cũ tận dụng may mắn tốt hơn.</strong></p>
+</li>
+<li><p><strong>Phần thưởng lượt quay cải thiện số lượng cơ hội, nhưng không trả lại quyền lựa chọn.</strong></p>
+</li>
+</ol>
+<p>Những chỗ cần sửa là các khẳng định tuyệt đối:</p>
+<ul>
+<li><p>“Không đạt được kỳ vọng nào” nên đổi thành “không còn con đường bảo hiểm để đạt kỳ vọng”.</p>
+</li>
+<li><p>“Kỳ vọng 1 bị loại bỏ” nên đổi thành “kỳ vọng 1 không còn khả năng được chủ động bảo đảm”.</p>
+</li>
+<li><p>“24.000 Pyroxene chỉ có 200 lượt” phải đổi thành “200 lượt bằng đá, tối đa 240 lượt thực tế sau bốn vé thưởng”.</p>
+</li>
+<li><p>Ngưỡng mới cần dùng là:</p>
+<ul>
+<li><p>pickup đầu ở lượt 40 trở xuống → còn khả năng bảo đảm pickup thứ hai;</p>
+</li>
+<li><p>pickup đầu ở lượt 140 trở xuống → còn khả năng chạm một mốc 50/50;</p>
+</li>
+<li><p>pickup đầu sau lượt 140 → không còn pity tiếp theo trong ngân sách 240.</p>
+</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2>Kết luận: cơ chế nào tốt hơn?</h2>
+<p>Câu trả lời chính xác nhất không phải “cũ tốt hơn tuyệt đối” hay “mới hào phóng hơn tuyệt đối”.</p>
+<p>Hai cơ chế tối ưu cho hai kiểu hành vi khác nhau.</p>
+<h3>Nếu chỉ săn đúng một pickup</h3>
+<p><strong>Cơ chế mới tốt hơn.</strong></p>
+<p>Người chơi nhận được:</p>
+<ul>
+<li><p>một mốc 50/50 ở lượt 100;</p>
+</li>
+<li><p>hard pity ở 200 Charge;</p>
+</li>
+<li><p>Charge có khả năng được giữ lại theo nhóm banner;</p>
+</li>
+<li><p>bốn vé 10 lượt trước mốc 200;</p>
+</li>
+<li><p>thêm nguyên liệu và phần thưởng theo số lần quay.</p>
+</li>
+</ul>
+<p>Với một mục tiêu duy nhất, hệ thống mới giảm khả năng phải đi toàn bộ 200 lượt mà không có điểm dừng đáng kể.</p>
+<h3>Nếu muốn lấy hai hoặc ba pickup trong cùng một đợt</h3>
+<p><strong>Cơ chế cũ tốt hơn rõ rệt về khả năng bảo đảm và lập kế hoạch.</strong></p>
+<p>Trong hệ thống cũ:</p>
+<ul>
+<li><p>một pickup tự xuất hiện → spark lấy pickup thứ hai;</p>
+</li>
+<li><p>hai nhân vật tự xuất hiện → spark lấy nhân vật thứ ba;</p>
+</li>
+<li><p>pickup xuất hiện ở lượt 190 vẫn giữ nguyên toàn bộ giá trị;</p>
+</li>
+<li><p>người chơi quyết định ai được nhận ở mốc 200.</p>
+</li>
+</ul>
+<p>Trong hệ thống mới:</p>
+<ul>
+<li><p>người chơi có nhiều lượt quay hơn;</p>
+</li>
+<li><p>nhưng mỗi pickup reset Charge;</p>
+</li>
+<li><p>nhân vật đầu phải xuất hiện trong 40 lượt đầu mới còn đủ ngân sách bảo đảm nhân vật thứ hai;</p>
+</li>
+<li><p>từ lượt 41 đến 140, nhân vật thứ hai chỉ còn một mốc 50/50;</p>
+</li>
+<li><p>sau lượt 140, nhân vật thứ hai không còn pity trong tổng 240 lượt;</p>
+</li>
+<li><p>nhân vật thứ ba gần như hoàn toàn phụ thuộc vào nhiều lần tự xuất hiện.</p>
+</li>
+</ul>
+<p>Vì vậy, kết luận chính xác nhất là:</p>
+<blockquote>
+<p><strong>Cơ chế mới là một hệ thống pity tốt hơn, nhưng là một công cụ lập kế hoạch tệ hơn.</strong></p>
+</blockquote>
+<p>Nó tốt hơn cho người chỉ nhắm một cánh cửa.</p>
+<p>Nó tệ hơn cho người muốn bước qua cả hành lang.</p>
+<hr />
+<h2>Kết luận cuối cùng</h2>
+<img src="https://cdn.hashnode.com/uploads/covers/61ed6307e247b2151e61a1b1/7916f3d6-ef91-45cf-8814-587d81b77c9b.png" alt="" style="display:block;margin:0 auto" />
+
+<p>Với trường hợp Magical Suzumi, Magical Reisa và giả định có thêm Magical Shimiko:</p>
+<ul>
+<li><p>Bốn vé 10 lượt làm cơ chế mới bớt khắc nghiệt hơn phép tính 200 lượt ban đầu.</p>
+</li>
+<li><p>Chúng nâng tổng số lượt tiềm năng từ 200 lên 240.</p>
+</li>
+<li><p>Chúng giúp người chơi có thêm cơ hội tự nhiên và mở rộng vùng có thể chạm pity thứ hai.</p>
+</li>
+<li><p>Nhưng chúng không khôi phục quyền chọn ở mốc 200.</p>
+</li>
+<li><p>Chúng không biến pickup ở lượt 190 thành nhân vật thứ hai.</p>
+</li>
+<li><p>Chúng không bảo đảm kỳ vọng 2 trừ khi pickup đầu xuất hiện trong 40 lượt đầu.</p>
+</li>
+<li><p>Chúng càng không biến kỳ vọng 1 thành một kế hoạch ổn định.</p>
+</li>
+</ul>
+<p>Đối với người chơi chỉ săn một nhân vật, cơ chế mới là một cải tiến.</p>
+<p>Đối với người chơi tích 24.000 Pyroxene để tận dụng một đợt banner đôi hoặc banner ba, cơ chế cũ vẫn có giá trị chiến lược cao hơn.</p>
+<p>Và còn một điều.</p>
+<p>Hệ thống cũ thưởng cho may mắn bằng cách mở thêm lựa chọn.</p>
+<p>Hệ thống mới thưởng cho may mắn bằng cách cho thêm lượt quay, rồi đặt đồng hồ về 0.</p>
+<p>Con số 200 vẫn ở đó, sáng bóng như trước. Chỉ là chiếc chìa khóa từng mở được cả hành lang giờ đã được đổi thành một túi vé để thử thêm vài cánh cửa.</p>
+<hr />
+<h2>Nguồn tham khảo</h2>
+<ul>
+<li><p><a href="https://bluearchive.jp/news/newsJump/679">Thông báo chính thức về việc làm mới hệ thống tuyển dụng</a></p>
+</li>
+<li><p><a href="https://dengekionline.com/article/202607/82720">Dengeki Online: nội dung Recruitment Count Rewards và tám vé 10 lượt</a></p>
+</li>
+<li><p><a href="https://automaton-media.com/articles/newsjp/20260728-457011/">AUTOMATON: 40 lượt thưởng trước mốc 200 và phản ứng về cơ chế mới</a></p>
+</li>
+<li><p><a href="https://appmedia.jp/blue_archive/80252752">AppMedia: thông tin ban đầu về Virtual Aptitude Test và tối đa năm đội</a></p>
+</li>
+</ul>
+]]></content:encoded></item><item><title><![CDATA[Đưa google về lại 2009]]></title><description><![CDATA[Hướng dẫn chi tiết cách đưa Google trở về giao diện 2009 theo phong cách hoài cổ với các công cụ hỗ trợ cần thiết.]]></description><link>https://hn.dh6k.vip/google-2009-guide-vi</link><guid isPermaLink="true">https://hn.dh6k.vip/google-2009-guide-vi</guid><category><![CDATA[Google]]></category><category><![CDATA[Nostalgia]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sun, 22 Jun 2025 19:43:06 GMT</pubDate><content:encoded><![CDATA[<p>Phiên bản này tốn ít bộ nhớ, ngon hơn hẳn so với google hiện nay (tin t đi, t dùng qua rồi).</p>
+<h1 id="heading-chuan-bi">Chuẩn bị</h1>
+<ul>
+<li><p>Stylus: <a target="_blank" href="https://addons.mozilla.org/en-US/firefox/addon/styl-us/">Firefox</a> | <a target="_blank" href="https://chromewebstore.google.com/detail/stylus/clngdbkpkpeebahjckkjfobafhncgmne">Chrome</a></p>
+</li>
+<li><p>Tampermonkey (để dùng Gbar, violent hay scriptcat nó ko chạy): <a target="_blank" href="https://addons.mozilla.org/vi/firefox/addon/tampermonkey/">Firefox</a> | <a target="_blank" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo">Chrome</a></p>
+</li>
+<li><p>Ublock origin (bản mv2) (để xoá vài yếu tố): <a target="_blank" href="https://addons.mozilla.org/vi/firefox/addon/ublock-origin/">Firefox</a> | <a target="_blank" href="https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm">Chrome</a></p>
+</li>
+<li><p>Header Editor (để chuyển user-agent, cái này tính năng nhiều lắm): <a target="_blank" href="https://addons.mozilla.org/en-US/firefox/addon/header-editor/">Firefox</a> | <a target="_blank" href="https://chromewebstore.google.com/detail/header-editor/">Chrome</a></p>
+</li>
+<li><p>Don’t track me Google (để cho Google đỡ theo dõi, khuyến khích cài đặt): <a target="_blank" href="https://addons.mozilla.org/en-US/firefox/addon/dont-track-me-google/">Firefox</a> | <a target="_blank" href="https://chromewebstore.google.com/detail/dont-track-me-google/gdbofhhdmcladcmmfjolgndfkpobecpg">Chrome</a></p>
+</li>
+</ul>
+<h1 id="heading-phan-chinh">Phần chính</h1>
+<p>Phần này là hướng dẫn cho từng ứng dụng, làm theo tuần tự nếu ko muốn những lỗi không mong muốn có thể xảy ra:</p>
+<h2 id="heading-header-editor">Header editor</h2>
+<p>Thêm cái này trong header editor</p>
+<ul>
+<li>Name: <code>OldGoogle</code></li>
+</ul>
+<ul>
+<li><p>Modify request header</p>
+</li>
+<li><p>Regular expression</p>
+</li>
+<li><p>Match rules: <code>^https://www.google.com/(.*?$)</code></p>
+</li>
+<li><p>Header name: <code>user-agent</code></p>
+</li>
+<li><p>Header value: <code>Mozilla/4.0 (compatible; MSIE 6.0; Windows CE; IEMobile 7.11)</code></p>
+</li>
+</ul>
+<p>Add xong nhớ bấm save, có thế thêm vào group nếu muốn.</p>
+<h2 id="heading-stylus">Stylus</h2>
+<p>Lấy <a target="_blank" href="https://github.com/comdlg32/google2009/blob/main/google2009.css">file css</a> từ <a target="_blank" href="https://github.com/comdlg32/google2009">repo này</a>, sau đó nhập thủ công trong stylus</p>
+<p>bấm icon stylus, rồi chọn manage:</p>
+<p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1750619899213/789e1c8b-fc6c-45f0-b45a-267ddf6e8dc9.png#_uDarkisuploading=false&amp;align=left&amp;logo_match=true" alt /></p>
+<p>sau đấy chọn dấu +:</p>
+<p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1750619961954/ead12dbf-7394-43b9-aeb9-27c8012fe950.png#_uDarkisuploading=false&amp;align=middle&amp;logo_match=true" alt class="image--center mx-auto" /></p>
+<p>Xoá hết cái đống này đi:</p>
+<p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1750621094273/7b27b436-3f90-4570-99aa-82b162901b61.png#_uDarkisuploading=false&amp;align=middle&amp;logo_match=true" alt class="image--center mx-auto" /></p>
+<p>Rồi kéo thả cái file “google2009.css” vừa tải về vào xong bấm save.</p>
+<h2 id="heading-tampermonkey">Tampermonkey</h2>
+<p>Tải và cài đặt userscript <a target="_blank" href="https://github.com/dh6k/Google-Gbar/raw/main/google-gbar.user.js">ở đây</a> (<a target="_blank" href="https://github.com/dh6k/Google-Gbar">fork của t</a>) (<a target="_blank" href="https://github.com/CallyHam/Google-Gbar">nguồn repo gốc</a>)</p>
+<p>fork của t để đảm bảo rằng trang web khác của google không bị cái thanh trên che mất, gây mất thẩm mỹ.</p>
+<h2 id="heading-ublock-origin">Ublock Origin</h2>
+<p>Thêm trang web này làm custom filter:<br /><a target="_blank" href="http://ogg.33166099.xyz">ogg.33166099.xyz</a></p>
+<h2 id="heading-dont-track-me-google">Don’t track me google</h2>
+<p>Chỉ cần cài và sử dụng thôi.</p>
+<h3 id="heading-va-the-la-hoan-tat-mac-du-co-loi-hinh-anh-o-cho-toolbar-nhung-nhin-chung-la-giong-toi-90-roi">Và thế là hoàn tất. Mặc dù có lỗi hình ảnh ở chỗ toolbar, nhưng nhìn chung là giống tới 90% rồi.</h3>
+<p>Nhược điểm là maps sẽ có ít tính năng hơn, cũng như light mode hơi chói tí.<br />còn lại vẫn có gemini, ggone, play,… đủ nhu cầu luôn.</p>
+]]></content:encoded></item><item><title><![CDATA[cách cài extension theo kiểu crx từ file zip]]></title><description><![CDATA[Xin chào cả nhà, lại là mình đây. Dưới đây là hướng dẫn cách cài extension theo dạng sideload crx, cũng như là tạo file .crx từ file zip gốc để sideload…]]></description><link>https://hn.dh6k.vip/cach-cai-extension-theo-kieu-crx-tu-file-zip</link><guid isPermaLink="true">https://hn.dh6k.vip/cach-cai-extension-theo-kieu-crx-tu-file-zip</guid><category><![CDATA[chrome extension]]></category><category><![CDATA[guide]]></category><category><![CDATA[vietnamese]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Fri, 21 Feb 2025 15:16:35 GMT</pubDate><content:encoded><![CDATA[<p>Xin chào cả nhà, lại là mình đây.</p>
+<p>Dưới đây là hướng dẫn cách cài extension theo dạng sideload crx, cũng như là tạo file .crx từ file zip gốc để sideload.</p>
+<p>Mình có những lí do mà thích cái việc cài qua file .crx này so với cái việc mà dùng “Load unpacked”:</p>
+<ul>
+<li><p>Đảm bảo an toàn về dữ liệu của extension. “Load unpacked” mặc dù tiện thật đấy, nhưng nếu như rơi vào 1 tình huống bất đắc dĩ mà làm cho folder gốc bị xoá đi hoàn toàn thì nó sẽ gây ra sự bực bội không hề nhỏ.</p>
+</li>
+<li><p>Nó tiện hơn (đối với mình), chỉ việc kéo file crx vào và tận hưởng, ko phải locate folder loằng nhoằng.</p>
+</li>
+<li><p>Có thể đem lên mobile sideload được (edge canary, kiwi browser,…)</p>
+</li>
+</ul>
+<p>Như vậy là đủ rồi, và sau đây là cách làm chi tiết:</p>
+<h2 id="heading-1-tao-file-crx-tu-filezip-ban-dau">1. Tạo file .crx từ file.zip ban đầu</h2>
+<ol>
+<li><p>Chuột phải vào file zip, sau đấy chọn giải nén. Mình lấy file extension “Vorapis v3” làm ví dụ:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740148627490/c574f440-feb4-41d0-a286-590780031c3a.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Khi này ta sẽ được thư mục với cấu trúc như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740148703660/ea0cc795-f80e-4479-a8fb-4f03af5827a9.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Vào chrome://extensions, xong đấy bật “developer mode” hay “Chế độ nhà phát triển” lên và chọn “Pack extension” như hình:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740148871463/5970f8dd-1d0a-4e37-9ac5-f3dc68bbc3f8.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Ở cái popup đấy hãy chọn folder extension vừa giải nén xong:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740148983229/bc804b30-7343-4c0f-9ebd-100db2b43c72.png" alt class="image--center mx-auto" /></p>
+<p> Sau khi chọn xong sẽ trông như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740149018213/0d87d6d6-a9cf-4aad-aa2e-2a6b6b788284.png" alt class="image--center mx-auto" /></p>
+<p> Xong rồi bấm “Pack extension'“, khi đấy ta sẽ được 2 file như hình:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740149094098/3f83ccf2-4f99-4e04-80bb-5a8b7ed42a9b.png" alt class="image--center mx-auto" /></p>
+<p> Đến đây là xong bước đóng gói extension dạng .crx từ file zip ban đầu. Giờ ta sẽ sang bước tiếp theo:</p>
+</li>
+</ol>
+<h2 id="heading-2-cai-dat-extension-tu-file-crx-da-co-hay-sideload-crx">2. Cài đặt extension từ file .crx đã có (hay sideload .crx)</h2>
+<h3 id="heading-luu-y-quan-trong-doc-ki-truoc-khi-tien-hanh"><mark>Lưu ý quan trọng, đọc kĩ trước khi tiến hành:</mark></h3>
+<ul>
+<li><p><mark>1 số trình duyệt chặn cài đặt extension từ bên ngoài, cần làm theo các bước sau đây nếu muốn dùng được trên đấy.</mark></p>
+</li>
+<li><p><mark>Nếu trình duyệt có hỗ trợ sideload extension thì có thể bỏ qua các bước 2,3 của bài hướng dẫn dưới này.</mark></p>
+</li>
+</ul>
+<ol>
+<li><p>Sideload extension đó lần đầu tiên, khi này nó sẽ cho phép như bình thường <strong>nhưng sẽ không thể chạy được</strong>. Như đã nói ở trên, các browser lớn chặn cài đặt extension bên ngoài “vì lí do bảo mật”</p>
+</li>
+<li><p>Khoan hãy vội xoá extension đấy, hãy copy extension id đấy, vì cái này rất cần thiết cho bước sau:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1740149706548/67dc4c3c-49b0-48af-a4f7-59eba01d7e24.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>tạo 1 file registry trong notepad với nội dung như sau:</p>
+<pre><code class="lang-plaintext"> Windows Registry Editor Version 5.00
+ ; cho nay la list extension duoc phep cai dat len tren trinh duyet
+ [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\ExtensionInstallAllowlist]
+ "1337"="bolggfoncklhniejomgplkjcllmnonbh"
+ "727"="flocingfhlgdfbmhknalbelmkladpaph"
+
+ [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallAllowlist]
+ "1337"="bolggfoncklhniejomgplkjcllmnonbh"
+ "727"="flocingfhlgdfbmhknalbelmkladpaph"
+
+ [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\BraveSoftware\Brave\ExtensionInstallAllowlist]
+ "1337"="bolggfoncklhniejomgplkjcllmnonbh"
+ "727"="flocingfhlgdfbmhknalbelmkladpaph"
+ ; cho nay la list nhung nguon duoc cai extension len tren trinh duyet
+ [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\ExtensionInstallSources]
+ "1335"="https://github.com/*"
+ "1336"="https://objects.githubusercontent.com/*"
+
+ [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Edge\ExtensionInstallSources]
+ "1335"="https://github.com/*"
+ "1336"="https://objects.githubusercontent.com/*"
+
+ [HKEY_LOCAL_MACHINE\SOFTWARE\Policies\BraveSoftware\Brave\ExtensionInstallSources]
+ "1335"="https://github.com/*"
+ "1336"="https://objects.githubusercontent.com/*"
+</code></pre>
+<p> Đây chỉ là ví dụ mẫu của 1 file registry để chỉnh policy <strong>để có thể cài extension theo ý muốn</strong>. Trong này đã có sẵn <strong>translate web pages</strong> cũng như là <strong>Vorapis v3</strong> phía trên, và đã bao gồm cho <em>Google Chrome, Microsoft Edge cũng như là Brave</em>.</p>
+<p> Tạo xong nhớ save dưới dạng .reg sau đấy import file này luôn.</p>
+<p> Anh em nào dùng MacOS thì tham khảo cách ở <a target="_blank" href="https://stackoverflow.com/questions/29916901/how-to-modify-chrome-extensioninstallwhitelist">chỗ này</a> xong đối chiếu với file reg này để thêm.</p>
+</li>
+<li><p>Khởi động lại trình duyệt (nếu có cho phép chạy ngầm thì vô cái icon trong taskbar nhấn chuột phải vào đó và chọn close, nếu ko đc thì kill hết task có liên quan trong Task Manager) và làm lại bước 1, lần này đảm bảo là sẽ chạy được êm ru.</p>
+</li>
+</ol>
+<p>Thế là đã xong việc sideload extension rồi đấy. <strong>Nhờ ae chia sẻ bài này cho các ae khác chưa biết. Cảm ơn anh em đã theo dõi mình đến đoạn này. Mãi keo.</strong></p>
+]]></content:encoded></item><item><title><![CDATA[Dynamis One/ Giải Thích Về Cuộc Tranh Cãi Dự Án KV (Bản dịch)]]></title><description><![CDATA[Cập nhật đến ngày: 03.09.2024 (04.09 lúc 1:50 sáng theo giờ của tác giả gốc.)Nguồn tại cuối tài liệu.Dịch bởi: ChatGPT (Model 4o hàng Free) với lên đến 5…]]></description><link>https://hn.dh6k.vip/project-kv-controversy-explained-translated-vi</link><guid isPermaLink="true">https://hn.dh6k.vip/project-kv-controversy-explained-translated-vi</guid><category><![CDATA[project-kv]]></category><category><![CDATA[translated]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Tue, 03 Sep 2024 18:56:41 GMT</pubDate><content:encoded><![CDATA[<p>Cập nhật đến ngày: 03.09.2024 (04.09 lúc 1:50 sáng theo giờ của tác giả gốc.)<br />Nguồn tại cuối tài liệu.<br />Dịch bởi: <a target="_blank" href="https://chatgpt.com/share/1edb8cb8-5312-4c03-a895-46c88fd57502">ChatGPT (Model 4o hàng Free) với lên đến 5 prompt.</a><br />Độ dài tài liệu gốc: 17 trang.<br /><a target="_blank" href="https://docs.google.com/document/d/1rpssNlIHbefhAQpgEYk7ll51Ce8peko-9b0Rxbjz9aI/edit">Link tài liệu gốc để tham khảo</a></p>
+<hr />
+<h2 id="heading-luu-y-bat-buoc"><strong>Lưu ý bắt buộc</strong>:</h2>
+<ul>
+<li><p>Đây không phải là một tài liệu pháp lý và không nhằm mục đích vu khống bất kỳ ai; đây chỉ là một tài liệu tóm tắt những gì đã xảy ra và tại sao nó lại là một vấn đề lớn ở Hàn Quốc/Nhật Bản, do rào cản ngôn ngữ thường ngăn cản sự lan truyền thông tin ra nước ngoài.</p>
+</li>
+<li><p>(context thêm) t đã cố gắng chèn link giống khoảng 80% so với bài viết gốc, mn có thể vào mà kiểm tra, đối chiếu. Tuy vậy 1 số link sẽ bị thiếu so với bài viết gốc, cái này mn tự đối chiếu và tự tìm hiểu thêm.</p>
+</li>
+<li><p>Hầu hết các đường link trong này chủ yếu có ngôn ngữ là tiếng Hàn. Nếu mn hiểu được thì tốt, còn không thì có thể sử dụng các công cụ dịch thuật.</p>
+</li>
+<li><p>Cái này chỉ là bản dịch thô, cho nên 1 số ngữ cảnh trong này khi đọc có thể gây cấn, ví dụ: Vầng hào quang = Halo.</p>
+</li>
+<li><p><s>Bài này có thể bị xoá vì vi phạm chính sách của cái nền tảng blog này</s>. Nếu nó mà bị xoá đi thì t sẽ đăng file doc thay thế</p>
+</li>
+<li><p>Nhớ ủng hộ tác giả gốc của bài viết, bởi vì t chỉ là người đi dịch sơ qua cho mn dễ hình dung được tình hình. Link twitter ở gần cuối bài này.</p>
+</li>
+</ul>
+<h3 id="heading-dong-thoi-gian"><strong>Dòng thời gian</strong></h3>
+<p>Mọi thứ bắt đầu khi 박병림 (issacq; cựu giám đốc BA phía Nhật Bản) rời công ty vào khoảng tháng 4/tháng 5, và không lâu sau đó là Isakusan (양주영; Trưởng nhóm Cốt truyện BA) sau khi V1C3 kết thúc. 즉흥환상 (김인; hwansang; Cựu Giám đốc Nghệ thuật) cũng rời đi vào khoảng thời gian này và tin đồn bắt đầu xuất hiện chậm rãi về khoảng 20 người nữa rời công ty thông qua Blind, một ứng dụng/dịch vụ cung cấp nhắn tin ẩn danh (nhưng với ID bạn chọn và công ty bạn làm việc được đánh dấu) giữa các công ty và trong nội bộ công ty cho nhân viên.</p>
+<p>Dấu hiệu đầu tiên (có thể không phải là "đầu tiên" về thời gian nhưng là nguồn tin đáng tin cậy nhất) về rắc rối xuất hiện khi một bài báo MTN từ một phóng viên rất đáng tin cậy được công bố, nói về số tiền nhận được bởi 김인 (hwansang) và 양주영 (isakusan), so sánh với số tiền nhận được bởi mỗi người.</p>
+<p><strong>Báo cáo kinh doanh 6 tháng chính thức của Nexon</strong> cũng xác nhận mức lương được trả, cụ thể tại Mục VIII-2<br /><a target="_blank" href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20240808000287">Link báo cáo</a></p>
+<p>Để xem biểu đồ, hãy chọn VIII-2 trên thanh cuộn bên trái hoặc nhấp vào nút ở góc trên bên trái có dòng chữ 다운로드 (Tải xuống), nhấp vào biểu tượng tài liệu trong cửa sổ pop-up nhỏ và cuộn xuống trang 130-132 (trang tài liệu 128-130).</p>
+<p>김인 đã kiếm được tổng cộng 867.780.000 KRW trước khi rời đi trong nửa đầu năm nay, trong khi 양주영 kiếm được 799.002.000 KRW. Để so sánh, CEO của Nexon Games, 박용현 kiếm được khoảng 715.500.500 KRW, trong khi PD của Blue Archive, Kim Yongha (김용하) kiếm được khoảng 649.000.700 KRW. Chỉ riêng các khoản thưởng, 김인 và 양주영 đã kiếm được lần lượt 760.000.000 KRW và 693.850.000 KRW, trong khi CEO của Nexon Games kiếm được 500.000.000 KRW và Kim Yongha kiếm được 526.700.000 KRW.</p>
+<p>867.780.000 KRW tương đương khoảng 648.870 USD tính đến ngày 02.09.2024.</p>
+<p>Như bạn có thể tưởng tượng, điều này có nghĩa là họ được bồi thường rất hậu hĩnh khi họ kiếm được nhiều tiền hơn cả CEO của công ty, ngay cả khi đó là do thưởng khuyến khích. Tuy nhiên, các cáo buộc trên Blind bắt đầu xuất hiện (cũng như một số đề cập tinh tế hơn trong cùng bài báo đó) rằng những người đã rời đi đang cố gắng kích động nhân viên khác rời đi vì "thiếu thưởng khuyến khích" - lưu ý rằng đây là những người vừa kiếm được nhiều tiền hơn cả CEO mỗi người.</p>
+<p>Sau đó, các bình luận tố cáo khác trên Blind bắt đầu xuất hiện khắp nơi với ít nhất 10-20 người khác nhau tham gia vào, cơ bản nói cùng một điều; rằng những người đã rời đi không rời đi trong điều kiện tốt, không để lại công việc của mình một cách suôn sẻ cho các nhân viên khác tiếp quản và một số có thể đã làm việc trên Dự án KV trước khi họ rời công ty, có thể từ tháng 1 năm nay hoặc sớm hơn.</p>
+<p>Cũng có những đề cập về việc những người đã rời đi "phân biệt đối xử nặng nề" (KR: 멸시; Một từ có nghĩa là coi thường với sự định kiến hoặc ác ý lớn: nghĩ về việc người da trắng coi thường người da đen khi phân biệt chủng tộc còn tồn tại) với các lập trình viên dẫn đến việc không có lập trình viên nào rời khỏi Nexon, điều này cũng được xác nhận bởi bài báo đã đề cập trước đó. Một số người thậm chí đã nói rằng họ bị những nhân viên đó đe dọa trước khi họ rời đi để tham gia công ty của họ, và rõ ràng là mọi thứ đã không diễn ra suôn sẻ như thông cáo báo chí của Yongha Kim vài tháng trước. Một số người cho rằng cuộc phỏng vấn đó phủ nhận sự rời đi gây tranh cãi vì ông ấy nói rằng họ rời đi trong điều kiện hòa bình/thân thiện, nhưng cũng cần lưu ý rằng với tư cách là PD của BA, lời nói của ông ấy có trọng lượng và việc công khai thừa nhận bất kỳ tranh chấp nào có thể gây hại cho tài chính của công ty - vì vậy, tốt nhất là làm dịu mọi thứ.</p>
+<p>Những người đã rời đi thành lập một công ty dưới tên Dynamis One với nguồn vốn cho 3 tháng làm việc do một nhà đầu tư thiên thần cung cấp. Công ty được thành lập vào khoảng cuối tháng 4 năm 2024 khi 박병림 rời Nexon và thành lập công ty. Những người được xác nhận đã rời đi là ba cá nhân đã đề cập trước đó cũng như Mx2J và DoReMi. Có khả năng CHILD cũng đã rời khỏi công ty cũng như vợ của Mx2J, người trước đây là trưởng nhóm UI/UX của BA, nhưng hai người này chưa được xác nhận chính thức cho đến nay. Cần lưu ý rằng Blue Archive gần đây đã đăng thông báo tuyển dụng các nhà phát triển UI.</p>
+<p>Mitsukiyo không "rời" Blue Archive vì đội âm nhạc của BA hoàn toàn được ký hợp đồng với các freelancer - mà Mitsukiyo là một trong số đó.</p>
+<h3 id="heading-cac-van-de-ma-dynamis-one-du-an-kv-gap-phai-co-the-duoc-tom-tat-trong-mot-vai-diem-chinh"><strong>Các vấn đề mà Dynamis One / Dự án KV gặp phải có thể được tóm tắt trong một vài điểm chính:</strong></h3>
+<ol>
+<li><p>Có bằng chứng khá đáng kể cho thấy các cá nhân liên quan đến dự án này đã làm việc trên Dự án KV một cách bí mật trong khi vẫn đang làm việc tại Nexon. Hầu hết các công ty Hàn Quốc mà tôi biết cấm làm hai công việc cùng một lúc (như làm việc cho một công ty CNTT khác hoặc thu thập người trong công ty để bắt đầu một doanh nghiệp mới) vì điều này có thể tạo ra sự mâu thuẫn về lợi ích - nhưng vì tôi không chắc về điều này, tôi sẽ chỉ nêu điều này như một điểm quan tâm tiềm năng. Bằng chứng đáng kể hơn xuất phát từ thực tế rằng trò chơi đã có thời gian phát triển cực kỳ nhanh chóng; trò chơi đòi hỏi phải xây dựng thế giới, lập kế hoạch chỉ đạo trò chơi và các cuộc thảo luận nội bộ rộng rãi mới có thể bắt đầu phát triển, ngay cả Blue Archive trong thời kỳ Dự án MX cũng mất ít nhất nửa năm để phát triển hoàn chỉnh các ý tưởng của mình. Tuy nhiên, Dự án KV chỉ trong chưa đầy ba tháng đã giới thiệu hình ảnh chính cũng như đoạn trailer ngắn, tiếp theo là một đoạn trailer dài hơn và các yếu tố xây dựng thế giới vào ngày hôm nay (01.09). Điều này đã dẫn đến nhiều người tin rằng cùng với các cáo buộc trên Blind, nếu không làm việc trên KV tại Nexon, tốc độ phát triển này đơn giản là không thể lý giải hợp lý được. Rất khó có khả năng Dynamis One đã tìm ra mã gian lận để vượt qua quá trình kiểm tra tất cả các sản phẩm có thể làm + các khía cạnh xây dựng thế giới trong thời gian ngắn như vậy, do đó các nghi ngờ nảy sinh.</p>
+</li>
+<li><p>Cuộc đấu đá nội bộ về tiền thưởng cũng là một lý do chính khiến người ta nhìn nhận vấn đề này một cách tiêu cực. Mặc dù nhận được số tiền lớn nhất trong công ty, nhưng những cá nhân đó vẫn cố gắng kích động bất ổn trong công ty để có thêm nhân viên trước khi rời đi, điều này hầu hết mọi nhân viên đã từng thấy điều tương tự trước đó đều sẽ coi là thiếu tôn trọng, vô đạo đức và bị coi thường.</p>
+</li>
+<li><p>Đây có lẽ là vấn đề lớn nhất đối với những người yêu thích Blue Archive; thực tế rằng Dự án KV là một bản sao lộ liễu của Blue Archive, không cố gắng che giấu điều đó và không thể bào chữa được. Một số người có thể nói rằng quầng sáng là một yếu tố phổ biến và không chỉ riêng của BA - chỉ cần nhìn vào Arknights hay Armored Core 6 hoặc bất kỳ trò chơi nào khác có thiên thần. Tuy nhiên, vấn đề không phải là "Dự án KV có quầng sáng" mà là trò chơi đang trực tiếp ăn cắp bản sắc IP từ Blue Archive, công việc trước đây của họ. KV hướng tới việc sử dụng tiếp cận Phật giáo so với chủ đề Thiên Chúa giáo của BA và trong Phật giáo thực tế cũng có quầng sáng được gọi là 광륜 trong tiếng Hàn. Đáng tiếc cho Dynamis One, những quầng sáng Phật giáo này vừa trông hoàn toàn khác biệt so với đối tác Thiên Chúa giáo từ hình dáng cho đến vị trí trên đầu, vậy mà đội ngũ KV lại chọn đặt một vòng ánh sáng hơi trên và sau đầu của một nhân vật trong một trong các hình ảnh chính của họ. Điều này tự nó là một đặc trưng của Blue Archive không phải vì "đó là một quầng sáng" mà vì đó là một quầng sáng được đặt ở vị trí và hình dạng chính xác của quầng sáng trong Blue Archive. Điều này càng trở nên tồi tệ hơn bởi thực tế rằng một trong những hình ảnh chính (cũng như PV ngày 01.09) bao gồm các vòng ánh sáng trên bầu trời - một yếu tố cốt lõi của bản sắc IP của Blue Archive. Nếu điều này có vẻ như là một sự phóng đại với bạn, thì nó giống như việc nhìn thấy mũ bảo hiểm của loạt phim Halo hoặc mũ bảo hiểm của Darth Vader trong một loạt phim không liên quan - nhưng không phải như một sự cống hiến hay trứng phục sinh mà là một phần quan trọng của bản sắc. Ngay cả Armored Core VI đã đề cập cũng có các vòng ánh sáng trên bầu trời, nhưng nếu có gì đó, người ta đã hỏi AC VI xem liệu nó có liên quan đến Blue Archive hay không; Điều này cho thấy quầng sáng như một yếu tố tổng thể giờ đây đã gắn liền với Blue Archive như một yếu tố nhận diện. Điều mỉa mai hơn nữa là một trong những cựu Giám đốc Nghệ thuật đã từng phỏng vấn nhiều năm trước, bàn về tầm quan trọng của quầng sáng trong BA và rằng nó là một yếu tố quan trọng của bản sắc IP của Blue Archive. Điều này đã gặp nhiều chế nhạo khi nó được nhắc lại, vì nó có nghĩa là những người đã tạo nên bản sắc của IP này giờ đang sao chép chính những chi tiết của IP đó trong "dự án mới và không liên quan" của họ là Project KV.</p>
+</li>
+</ol>
+<p>Các yếu tố khác gần như chắc chắn bị đạo văn là các yếu tố như toàn bộ tiền đề của trò chơi. Để minh họa:</p>
+<p>Blue &lt;-&gt; Red</p>
+<p>Archive &lt;-&gt; Alaya (Sanskrit for Archive)</p>
+<p>Guns &lt;-&gt; Swords</p>
+<p>Youth (청춘) &lt;-&gt; Nostalgia</p>
+<p>Near-Future Modern &lt;-&gt; Retro 1990s</p>
+<p>Halo (헤일로) &lt;-&gt; 광륜 (Buddhist afterglow) sự lựa chọn có chủ ý về một thành phố học thuật cho KV gần như giống một từ dành cho người chơi (선생/Sensei vs 스승/Master - ý nghĩa gần như giống hệt nhau trong tiếng Hàn và là từ mà Renge trong BA thực sự sử dụng để gọi Sensei ingame) cùng nhiều thứ khác.</p>
+<p>Mọi thứ dường như là họ đã lấy những gì làm nên Blue Archive và đảo ngược mọi thứ một cách rõ ràng và rất lười biếng như một sản phẩm. Bao gồm cả trong nguồn tài liệu cũng có các so sánh giữa văn bản tóm tắt của KV và văn bản tóm tắt và thiết lập của Blue Archive, điều này nói rằng gần như không có sự khác biệt giữa hai trò chơi.</p>
+<ol start="4">
+<li>Kết quả của Điều 2 và Điều 3, một số người đã suy đoán rằng lý do tại sao khoảng ~1 năm qua của Blue Archive đã gặp phải một số vấn đề nhiều nhất từ trước đến nay (mặc dù điều này có thể phụ thuộc vào người bạn hỏi). Vấn đề mà nhiều người gặp phải với điều này là nếu bạn lấy khoảng thời gian phát triển ~1 năm trước đó 'tin đồn' và xem lại lịch sử cập nhật của Blue Archive, mọi thứ lại không hợp lý một cách bất thường. Những thứ như cốt truyện bị chia thành 6 phần và phát hành cực kỳ chậm trong nửa năm, chất lượng nghệ thuật giảm rõ rệt đối với một số nhân vật như Band Natsu, Band Kazusa cũng như ví dụ rõ ràng nhất là Qipao Marina trên JP gần đây. Họa sĩ Mx2J của Marina đã đặt một sự thiếu nỗ lực rõ ràng vào Marina (Q) mà càng rõ ràng hơn nữa khi so sánh với tác phẩm nghệ thuật (dựa trên phong cách nghệ thuật đặc biệt của anh ta) cho Project KV, điều này đã châm ngòi cho ý tưởng rằng những người như isakusan (V1C3 ban đầu được đón nhận tốt nhưng kể từ đó đã bị chỉ trích vì có nhiều lỗ hổng cốt truyện, sử dụng nhân vật không đầy đủ, sự mất cân bằng nhân vật và một cốt truyện có quá nhiều sự thay đổi không cần thiết và phân tâm) và Mx2J đã cố tình lơ là trong công việc, thậm chí có thể là xác nhận những cáo buộc trên Blind về việc họ nộp đơn xin nghỉ ốm hàng loạt trong nhiều tháng và làm việc tại nhà thực sự là để làm việc trên Project KV thay vì Blue Archive.</li>
+</ol>
+<p>Mặc dù đúng là điều này cuối cùng chỉ là suy đoán đến một mức độ nào đó, nhưng cũng có một số tin nhắn Blind khác nói rằng những người còn lại ở Nexon có lẽ sẽ không thể làm việc tại nhà lần thứ hai (lần đầu tiên do vụ trộm của Ironmace poaching toàn bộ đội P3 của những gì sau này sẽ được phát hành dưới tên Dark and Darker), điều này có nghĩa là họ đã gây rắc rối cho những người ở lại khi họ rời đi.</p>
+<p>Như một phần bổ sung, nhóm Bị cáo thứ nhất đã nhận tiền thưởng khuyến khích của họ sớm như một kết quả của sự việc này, theo cùng một phóng viên, và các cuộc nói chuyện trên Blind đề cập rằng các kiểm toán viên đã đang xem xét hồ sơ để xem liệu có xảy ra gian lận tiền bạc hay không, khiến các phần thưởng khuyến khích của mọi người khác bị trì hoãn trong quá trình này. Điều này thường được coi là hành động không lịch sự, điều này càng làm hỏng hình ảnh công chúng của họ.</p>
+<ol start="5">
+<li>Phần chủ quan nhất về việc này nằm ở những gì đã được xây dựng trong vài năm qua. Nói một cách khách quan, cả isakusan và 박병림 đều không phải là những cá nhân đặc biệt nổi bật. Dự án đầu tiên của Isakusan (một VN được thực hiện bởi một nhóm nhỏ) đã bị hủy bỏ sau khi chỉ phát hành phần mở đầu vì bị cáo buộc đạo văn một loạt phim khác, và dự án tiếp theo của anh (QuRaRe) thường xuyên bị chỉ trích vì cốt truyện hoặc là có lỗi hoặc rất kém. Trong trường hợp của 박병림, trước đây anh đã từng cố gắng tách khỏi một công ty khác để làm kinh doanh riêng của mình một lần - điều này đã thất bại - làm việc trên QuRaRe cũng như sau đó đã đến với BA sau khi trò chơi đóng cửa. Điều này không có nghĩa là cả hai đều hoàn toàn không có khả năng viết truyện hoặc kinh doanh, nhưng cần lưu ý rằng không ai trong số họ được đánh giá cao trước khi đến với Blue Archive.</li>
+</ol>
+<p>Cũng có một phần lỗi thuộc về cộng đồng người chơi, đặc biệt là ở Hàn Quốc và Nhật Bản, vì vụ việc này trở nên sốc hơn nữa bởi vì có rất nhiều niềm tin và tình yêu dành cho những cá nhân đã rời đi. Blue Archive là một trong những trò chơi mà người chơi không chỉ biết các VAs và PD mà còn cả người viết cốt truyện, các PD khu vực cũng như các tài năng quan trọng khác - cho thấy rằng thực sự có rất nhiều tình cảm dành cho những người đã phát triển trò chơi mà chúng tôi yêu thích rất nhiều.</p>
+<p>Tuy nhiên, chính niềm tin cao này không thực sự đáng trách vì điều này cũng một phần được thúc đẩy bởi những cá nhân đó, với việc họ đăng tải về việc làm việc ngoài giờ hoặc rất muộn trên Twitter hoặc tương tác với các thành viên khác nhau của cộng đồng thường xuyên. Khi tất cả những lý do đã trình bày trước đó bắt đầu tác động đến cộng đồng, đã có một giai đoạn ngắn phủ nhận nhưng sự đảo ngược diễn ra nhanh chóng và không ngừng nghỉ; Mọi người cảm thấy bị phản bội bởi những người mà họ đã đặt niềm tin vào việc phát triển Blue Archive. Nhiều người (bao gồm cả tôi, người viết) đã bày tỏ sự tức giận, buồn bã và thất vọng to lớn khi phát hiện ra vụ việc này không phải vì chúng tôi không quan tâm mà vì chúng tôi quan tâm quá nhiều thay vào đó. Chúng tôi mong đợi họ viết ra những câu chuyện hấp dẫn như Volume 3 và Volume F đã từng, tạo ra những nhân vật mới trông đẹp hơn nhân vật cũ và cũng đáng yêu không kém và quản lý trò chơi để nó có thể tiếp tục phát triển. Đối mặt với bằng chứng rằng những gì họ đã làm là hoàn toàn ngược lại với sự đón nhận kém của V1C3, lịch phát hành chậm rãi và rời rạc một cách khó hiểu, quản lý kém trong suốt năm qua bao gồm cả sự kiện Cân bằng Sách Aoi xuất hiện 3 lần liên tiếp, sinh viên thay đổi xuất hiện quá thường xuyên với rất ít sinh viên mới ra mắt cũng như vấn đề đã đề cập trước đó về sự chênh lệch chất lượng nghệ thuật giữa Marina (Q) và Project KV, mọi người vừa tan nát vừa trở nên giận dữ với những người đã cố gắng đẩy trò chơi vào một ngôi mộ sớm, vô tình gây ra điều đó hoặc ít nhất là không thể mang đến những gì người hâm mộ mong muốn và rời công ty... để tạo ra một sản phẩm hoàn toàn giống nhau với cùng cài đặt và nhân vật???</p>
+<p>Phần lớn những lời phàn nàn này vốn dĩ mang tính cảm xúc và điều đó là không thể tránh khỏi vì chúng tôi với tư cách là người hâm mộ không còn có thể nhìn nhận những câu chuyện chúng tôi yêu thích, những nhân vật chúng tôi yêu mến và những sự kiện chúng tôi thích một cách tích cực khi chúng gắn liền với những người này. Một số yếu tố nhạy cảm hơn trong PV như một sinh viên rất giống Iroha cũng như một sinh viên có tên Kuzunoha, một nhân vật chưa được phát hành, chưa được khám phá, được trêu chọc nhiều năm trước với rất ít sự giải thích thậm chí cho đến ngày hôm nay thực sự đã khiến nhiều người khó chịu và hoàn toàn hợp lý.</p>
+<h3 id="heading-mot-so-dieu-dang-chu-y-ve-vu-viec-nay-la"><strong>Một số điều đáng chú ý về vụ việc này là:</strong></h3>
+<p>Không có bất kỳ lập luận nào ủng hộ Dynamis One cả, không một lập luận nào. Ngay cả khi vụ việc Dark and Darker xảy ra, nhiều người trong cộng đồng nước ngoài đã nhanh chóng bảo vệ Ironmace và đổ lỗi cho Nexon vì hình ảnh xấu của Nexon trên toàn cầu, mặc dù thực tế là hầu hết mọi người đều đồng ý rằng trò chơi đã được phát triển tại Mintrocket Studios, một công ty con của Nexon Games chịu trách nhiệm cho trò chơi được đánh giá cao là Dave the Diver (một trò chơi cùng với BA đã cải thiện hình ảnh công chúng của Nexon đáng kể) và bị đánh cắp trái phép bởi Ironmace với toàn bộ đội dự án và trò chơi. Trong bối cảnh đó, việc không có bất kỳ thông tin nào cả trên Blind và chính thức/bán chính thức chỉ trích Nexon cho thấy rằng những người đã rời đi gần như hoàn toàn chịu trách nhiệm về tất cả những rắc rối này từ những xúi giục nội bộ, có thể lơ là công việc của họ để phát triển một đối thủ của Blue Archive, v.v.</p>
+<p>Việc họ cố tình chọn cùng phong cách nghệ thuật, khái niệm, từ khóa/cài đặt gần như giống hệt nhau như quầng sáng, thành phố học thuật, v.v. trước mặt tất cả những điều này được coi là không chân thật, vô đạo đức và cũng có hương vị kém, đồng thời không liên quan chút nào đến Blue Archive, trò chơi mà họ từng làm việc.</p>
+<p>Khả năng tất cả điều này là một công việc nội bộ của Nexon, hoặc bằng cách tiết lộ rằng đây là một chiến dịch tiếp thị tinh vi hoặc một công ty con, cũng đã bị phủ nhận thông qua việc Yongha Kim retweet một tweet phổ biến của CC Blue Archive, giải thích bằng tiếng Nhật rằng Project KV không liên quan gì đến Blue Archive cả.</p>
+<p>Cũng không giúp gì khi tên gian hàng đề xuất của Dynamis One tại Comiket là 黒ネズミたちのパトス的弁証法, có nghĩa tương đương với "chúng tôi là phản đề chống lại nguyên bản (BA)", đồng thời ngầm thừa nhận rằng họ đã gây hại cho Blue Archive. Tên này có thể được chia thành ba phần lớn - Kuronezumi có nghĩa là chuột đen và cũng có nghĩa là người ăn cắp/gây hại cho chủ nhân của mình, Pathos có nghĩa là nhiều cảm xúc bao gồm giận dữ, hạnh phúc, thù hận và buồn bã, và Biện chứng một quá trình lấy phản đề của điều bạn muốn chứng minh để tìm ra câu trả lời đúng. Việc đặt tên quá rõ ràng như vậy cùng với toàn bộ IP chỉ đơn giản là Project MX với mọi thứ được đảo ngược lười biếng, tất cả những điều này chỉ khiến mọi người cảm thấy rất khó chịu.</p>
+<h3 id="heading-quan-diem-ca-nhan-suy-doan"><strong>Quan điểm cá nhân + Suy đoán</strong></h3>
+<p>Là một người Hàn Quốc, tôi cũng muốn thêm rằng sự thành công của trò chơi này không bao giờ nên xảy ra vì nó sẽ tạo ra một tiền lệ xấu trong một ngành công nghiệp vốn đã nhỏ bé và mong manh, đang trải qua một giai đoạn khó khăn. Nhiều người đã ngưỡng mộ những người như isakusan, không ít trong số họ được truyền cảm hứng để bắt đầu viết hoặc vẽ vì họ, và điều này đã đẩy một lưỡi dao vào lòng ngực của mỗi người nếu đó là trường hợp. Sự thành công của trò chơi này sẽ có nghĩa là việc rời khỏi công ty của bạn để tạo ra một bản sao trực tiếp của trò chơi gốc của bạn và ăn cắp công việc của người khác (xem như trò chơi không bao giờ được tạo ra chỉ bởi một nhóm nhỏ người - bạn chắc chắn sẽ ăn cắp một số chi tiết hoặc khía cạnh mà người khác đã tạo ra bằng cách sao chép toàn bộ trò chơi) là hoàn toàn tự do và khả thi như một doanh nghiệp, điều này sẽ tạo ra một tiền lệ xấu cả về mặt pháp lý và văn hóa. Cá nhân tôi mong muốn sự thất bại của trò chơi không phải vì tôi có mối hận thù cá nhân với các thành viên của nó mà vì sự thành công của nó sẽ là một căn bệnh cho ngành công nghiệp.</p>
+<p>Về mặt suy đoán, có một số kết quả có thể xảy ra. Trò chơi có thể không bao giờ đạt đến giai đoạn ra mắt (có khả năng nhất), có thể ra mắt như một VN như đã nói trong tweet của isakusan, hoặc có thể là một trò chơi đối kháng 1v1 dựa trên những gì đã nói trên Blind. Cũng không rõ liệu công ty có thêm nguồn vốn để tiếp tục phát triển không vì khoản đầu tư thiên thần 3 tháng hiện đã hết (hầu hết mọi người đã rời đi và tham gia Dynamis One vào tháng 5, bây giờ đã là đầu tháng 9), điều này dẫn đến suy đoán rằng lý do tại sao có sự đếm ngược gấp rút (đếm ngược bắt đầu từ số 4, không phải 5, 7 hoặc 10) và tiết lộ nhanh chóng - để thu hút nhà đầu tư / lập trình viên tiềm năng. Dựa trên các tài liệu pháp lý về dịch vụ hưu trí quốc gia (국민연금), Dynamis One tính đến tháng 8 có 19 thành viên.</p>
+<p>Về lý do tại sao sự chia rẽ này xảy ra và tất cả điều này là để làm gì, hiện nay đây là một ẩn số lớn. Chúng tôi không biết động cơ nào đã thúc đẩy những người rời đi rời khỏi công ty ngoại trừ suy đoán rằng có thể là tất cả lời khen ngợi về trò chơi bị thiếu sót về gameplay và bị cốt truyện lấn át đã làm đầu óc họ phồng lên hoặc họ đã đảm bảo được một số nguồn vốn nhưng chưa tiết lộ ai (điều này lạ lùng vì việc tiết lộ ai đó sẽ thu hút thêm nhà đầu tư). Nó có thể là do cái tôi của họ lớn quá so với khả năng của họ hoặc muốn kiếm thêm tiền bằng cách trực tiếp điều hành một trò chơi copycat giống BA.</p>
+<p>Họ có thể đã cố gắng sao chép Blue Archive đến mức này, có lẽ giả định rằng người ta sẽ theo họ đông đảo, như ở Hàn Quốc và Nhật Bản và ở một mức độ nhỏ hơn là trên toàn cầu, có một nền văn hóa rất mạnh mẽ “isakusan = thần” trong cộng đồng hoặc ít nhất là đã cố gắng sử dụng tiếp thị ồn ào bằng cách giống BA để khi 'trong 2-3 năm khi Blue Archive tụt dốc, họ có thể đến với một trò chơi copycat giống BA’. Điều này đã nhận được ý kiến cực kỳ tiêu cực từ hầu hết mọi người trong cộng đồng Hàn Quốc ít nhất vì điều này đến mức đạo văn trắng trợn và đạo đức làm việc không tồn tại khiến bạn cảm thấy khó chịu. Nó có nghĩa là những người đã đáng lẽ phải phát triển Blue Archive thực sự đã cố gắng giết chết nó từ bên trong, rời đi và bây giờ đang cố gắng làm lại điều đó như một đối thủ trực tiếp. Cuối cùng, chúng ta chỉ biết ít nhất tính đến hôm nay (ngày 02.09 lúc 3 giờ chiều khi viết) và có lẽ sẽ không bao giờ biết nhiều chính thức trừ khi Nexon kiện Dynamis One vì vi phạm bản quyền/IP và/hoặc vi phạm hợp đồng.</p>
+<h3 id="heading-phu-luc-0209"><strong>Phụ lục 02.09:</strong></h3>
+<p>Tài khoản chính thức của KV đã retweet một số hình ảnh có nội dung hơi nhạy cảm, bao gồm cả những hình ảnh gần như NSFW. Tuy nhiên, điều này có lẽ không có nghĩa là KV sẽ là một trò chơi NSFW vì luật pháp Hàn Quốc (và cả Nhật Bản) quy định các trò chơi có cảnh 19+ thực sự không được phép xuất hiện trên cả Google Play/App Store và phải tuân theo các quy định nghiêm ngặt của chính phủ. Rất có thể trò chơi sẽ được xếp hạng 15+/17+ hoặc rất nhẹ 19+, nhưng khó có khả năng nó sẽ là một trò chơi hoàn toàn NSFW dựa trên bằng chứng hiện có.</p>
+<h3 id="heading-phu-luc-0309"><strong>Phụ lục 03.09</strong></h3>
+<p>Dynamis One đã xóa và tải lại PV của họ, rất có thể là để giải quyết hai vấn đề cùng một lúc (các cáo buộc vi phạm quy tắc Comiket + để dọn dẹp hàng loạt các bình luận chỉ trích Project KV).</p>
+<p>(Thông tin về <a target="_blank" href="https://news.yahoo.co.jp/articles/a4ec1c5bf6ef05ae2bc65e4f4a5985c48c0f1e7d">bài báo tiếng Nhật</a> liên quan đến vấn đề này)</p>
+<p>(Bản dịch (KR) các bình luận của người Nhật <a target="_blank" href="https://arca.live/b/projectkv/115378776">chỉ ra trực tiếp hoặc gián tiếp những mỉa mai</a> trong PV tải lại)</p>
+<p>(Một số người giải thích 'tại sao' mọi người ghét dự án; vì "nó <a target="_blank" href="https://arca.live/b/projectkv/115369042">không giải thích được tại sao phải là Project KV</a>")</p>
+<p>(<a target="_blank" href="https://arca.live/b/projectkv/115346127">Suy đoán</a> về lý do tại sao Dynamis One muốn có mặt tại Comiket)</p>
+<p><em>Văn bản trên đến từ một</em> <a target="_blank" href="https://arca.live/b/projectkv/115401960"><em>bình luận trên Blind</em></a> <em>của một người làm việc tại Nexon</em></p>
+<hr />
+<h3 id="heading-van-de-ve-gian-hang-comiket-cua-dynamis-one"><strong>Vấn đề về gian hàng Comiket của Dynamis One</strong></h3>
+<p>Dynamis One đã gặp phải một loạt tranh cãi lớn nữa hôm nay do có người chỉ ra rằng đơn đăng ký gian hàng Comiket của họ được nộp dưới danh nghĩa một gian hàng cá nhân/riêng tư trong khi thực tế nó phải là một gian hàng công ty. Đây dường như không phải là lần đầu tiên xảy ra vấn đề tương tự tại Comiket. Điều này dẫn đến việc Dynamis One <a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=30232">xóa và sau đó tải lại PV Project KV của họ</a> trên Youtube để loại bỏ phần quảng cáo Comiket và nộp lời xin lỗi rằng họ xin lỗi về sự việc này.</p>
+<p>...Sẽ không có gì tranh cãi nếu sự việc kết thúc ở đó. Đáng tiếc, mọi người đã nhanh chóng nhận ra rằng tiếng Nhật được sử dụng trong lời xin lỗi là "không tự nhiên" và "nghe không đúng", với một số người thậm chí trực tiếp nói rằng lời xin lỗi không giải quyết được vấn đề thực sự, đó là công ty vẫn đăng ký gian hàng dưới danh nghĩa cá nhân mặc dù rõ ràng vẫn liên quan đến công ty. Comiket tự hào về văn hóa tạo ra một sự kiện văn hóa phụ lớn với cả những người mở gian hàng và những người tham dự, và trong quá khứ đã <a target="_blank" href="https://arca.live/b/projectkv/115361585">rất nghiêm khắc ngay cả với những công ty có tên tuổi mà bạn có thể đã nghe đến như Type-Moon</a>, điều này đương nhiên làm tổn thương nhiều người hơn nữa tại Nhật Bản. Đây là một vấn đề nghiêm trọng đối với Project KV/Dynamis One vì họ đã làm tổn thương nhiều người hơn nữa (những người đáng lẽ ra là đối tượng chính của họ) và cũng cho thấy rằng mặc dù nhắm đến dịch vụ tại Nhật Bản, chất lượng tiếng Nhật của họ lại rất thiếu sót trong mắt người Nhật thực sự.</p>
+<p><strong>Các nguồn thông tin liên quan:</strong></p>
+<ul>
+<li><p><a target="_blank" href="https://arca.live/b/projectkv/115363415">Arca Live Post 1</a></p>
+</li>
+<li><p><a target="_blank" href="https://arca.live/b/projectkv/115390774">Arca Live Post 2</a></p>
+</li>
+<li><p><a target="_blank" href="https://arca.live/b/projectkv/115335708">Arca Live Post 3</a></p>
+</li>
+<li><p>(Các tweet tiếng Nhật hoặc bình luận của người Hàn về các tweet này chỉ trích hành động này)</p>
+</li>
+</ul>
+<p><strong>(Ai đó viết một</strong> <a target="_blank" href="https://arca.live/b/projectkv/115376716?mode=best&amp;p=1"><strong>tài liệu xin lỗi tốt hơn bằng tiếng Nhật</strong></a><strong>)</strong></p>
+<p><strong>(</strong><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=28479"><strong>Một lá thư xin lỗi khác được viết lại/phân tích</strong></a><strong>, lần này từ phía Hàn Quốc)</strong></p>
+<p>Công ty cũng ngay lập tức bắt đầu <a target="_blank" href="https://arca.live/b/projectkv/115381669">retweet fanart</a> về các nhân vật được tiết lộ trong Project KV sau khi đăng lời xin lỗi, dẫn đến việc lời xin lỗi <a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=30197">bị chôn vùi dưới một núi (theo nghĩa bóng) hình ảnh</a>, làm giảm ý nghĩa của lời xin lỗi. Hành động này đã bị chỉ trích rộng rãi trong cộng đồng và điều đó hoàn toàn dễ hiểu.</p>
+<p>Hôm nay cũng là ngày các phương tiện truyền thông chính thống ở Hàn Quốc <a target="_blank" href="https://m.yna.co.kr/view/AKR20240903048900017">bắt đầu đăng các bài báo về vấn đề này</a>, với YNA (연합뉴스) là một trang tin khá lớn ở Hàn Quốc. <a target="_blank" href="https://www.insightkorea.co.kr/news/articleView.html?idxno=208864">Các phương tiện truyền thông khác</a> cũng đã tham gia vào vấn đề này.</p>
+<p>Cũng đã có <a target="_blank" href="https://www.thisisgame.com/webzine/nboard/12/?n=195629">một bài báo khác</a> được viết bởi một YouTuber/phóng viên tuyên bố:</p>
+<ul>
+<li><p>Dynamis One thực tế đã thu hút được các lập trình viên</p>
+</li>
+<li><p>Dynamis One có hơn 3 tháng nguồn tài chính</p>
+</li>
+<li><p>Dynamis One đang được phát triển theo quy trình bình thường và không phải là dự án "vaporware" (sản phẩm không thực sự tồn tại)</p>
+</li>
+</ul>
+<p>Tuy nhiên, cần lưu ý rằng phóng viên này có độ tin cậy khá thấp vì đã báo cáo từ một <a target="_blank" href="https://arca.live/b/projectkv/115388799">quan điểm</a> rất <a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=30349">thiên vị</a> trong <a target="_blank" href="https://namu.wiki/w/%ED%98%84%EB%82%A8%EC%9D%BC#s-3">vụ việc Last Origin</a> vài năm trước, với các tuyên bố của ông ta bị đặt câu hỏi ít nhất và chỉ là trò chơi chữ tệ nhất. Ví dụ như tuyên bố đầu tiên của ông ta (Dynamis One có lập trình viên) - mặc dù có thể họ đã thu hút được một số lập trình viên, nhưng hiện tại bài báo MTN chính (một nguồn tin cậy hơn nhiều) nói rằng “Dynamis One đã gặp khó khăn trong việc thu hút nhân tài lập trình”, điều này không có nghĩa là 'Dynamis One không tìm được một lập trình viên nào' và chắc chắn không có nghĩa như vậy. Phóng viên này tuy nhiên chỉ sử dụng trò chơi chữ để gạt bỏ những câu hỏi hợp lý mà bài báo chính đưa ra là liệu họ có đủ lập trình viên để tạo ra một trò chơi thực sự hay không.</p>
+<p>Điểm thứ hai cũng chỉ đơn giản bị bỏ qua bởi phóng viên với câu “họ có một văn phòng hợp pháp ở Gangnam” mà ... không có liên quan gì đến việc liệu họ có thêm nguồn tài chính để tiếp tục hay không. Không hiếm khi các công ty thuê một văn phòng hợp pháp để có một số vị thế trong các cuộc đàm phán (ví dụ: để không bị coi thường) và điều này không phải là bằng chứng về bất kỳ khoản đầu tư nào vào trò chơi. Điểm thứ ba cũng chỉ là suy đoán của phóng viên mà không có bằng chứng nào được cung cấp để hỗ trợ các tuyên bố này. Bài báo này tại một thời điểm thậm chí đã <a target="_blank" href="https://arca.live/b/projectkv/115388840?mode=best&amp;p=1">có phần bị làm mờ và gạch bỏ</a>, điều này rất không chuyên nghiệp và không đạt tiêu chuẩn báo cáo phù hợp mà các phóng viên và các cơ quan truyền thông đáng tin cậy hơn thực hành.</p>
+<p>Có một số điểm đáng chú ý trong bài báo cho người hâm mộ Blue Archive như một số tin tức về Project RX, nhưng bài báo tự nó thiếu rất nhiều độ tin cậy và được khuyến nghị rằng bạn nên đọc bài báo này <strong>với một cái nhìn nghi ngờ</strong>, coi nó như những tuyên bố "có thể có" ở thời điểm hiện tại.</p>
+<p>Nếu bạn đã đọc đến đây, cảm ơn bạn đã theo dõi! Tôi có những thiên kiến của riêng mình, vì vậy tôi xin lỗi về điều đó và hy vọng Blue Archive có thể hồi phục và quay trở lại mạnh mẽ để chứng minh những người đã rời đi là sai.</p>
+<p>Dưới đây là Twitter/X của tôi nếu ai đó quan tâm, chỉ là vì lý do nào đó thôi:</p>
+<p><a target="_blank" href="https://x.com/StellaSolaris01">StellaSolaris01 trên X (Twitter)</a></p>
+<p><strong>Nguồn/Thông tin bổ sung</strong></p>
+<ul>
+<li>Namuwiki (tương đương Wikipedia của Hàn Quốc) bài viết về <a target="_blank" href="https://namu.wiki/w/%EB%94%94%EB%82%98%EB%AF%B8%EC%8A%A4%20%EC%9B%90%EC%9D%98%20%EB%84%A5%EC%8A%A8%EA%B2%8C%EC%9E%84%EC%A6%88%20%ED%87%B4%EC%82%AC%20%EC%84%A0%EB%8F%99%20%EB%B0%8F%20%EB%B8%94%EB%A3%A8%20%EC%95%84%EC%B9%B4%EC%9D%B4%EB%B8%8C%20%ED%91%9C%EC%A0%88%20%EB%85%BC%EB%9E%80">Dự án KV thảo luận về cáo buộc đạo văn của Blue Archive</a>.</li>
+</ul>
+<p><strong>Trước 01.09</strong></p>
+<ul>
+<li>Nhiều ảnh chụp màn hình từ Blind bao gồm một số hình ảnh từ Lounge, một phần phụ của Blind mà chỉ nhân viên của công ty mới có thể truy cập để thảo luận riêng tư. Lounge thường được coi là đáng tin cậy hơn so với các bình luận trên Blind.</li>
+</ul>
+<p><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=2086">Link 1</a><br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view?id=projectkv&amp;no=5133">Link 2</a><br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=2845">Link 3</a><br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=2913">Link 4</a><br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=3186">Link 5</a><br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=2913">Link 6</a> (Bài đăng tuyên bố những người đã rời đi coi thường các lập trình viên, do đó không ai rời khỏi Nexon).</p>
+<ul>
+<li><p><a target="_blank" href="https://news.mtn.co.kr/news-detail/2024081411035063251">Bài viết của phóng viên 서정근</a> thảo luận về số tiền thưởng được trao, đề cập đến việc những người đã rời đi gây xáo trộn trong công ty trước khi rời đi do "thiếu tiền thưởng khuyến khích" và nói về việc Dynamis One có 3 tháng tài trợ từ nhà đầu tư thiên thần để tiếp tục hoạt động. Phóng viên này ít nhất đối với các thông tin liên quan đến Nexon được xem là vô cùng đáng tin cậy, nếu không muốn nói là “chính thức” vì ông ta trước đây đã báo cáo về việc EOS của KartRider hoặc việc sắp xếp nhân sự nội bộ của Nexon trước khi bất kỳ tin tức chính thức nào xuất hiện và sau đó đã được Nexon xác nhận là đúng sự thật trong cả hai trường hợp.</p>
+</li>
+<li><p><a target="_blank" href="https://news.mtn.co.kr/news-detail/2024082219344328718">Bài viết của cùng phóng viên nói trên</a> về việc nhóm Định Mệnh Đầu Tiên tại Nexon Games nhận được tiền thưởng khuyến khích sớm, có thể là do "kết quả của cuộc di cư của các nhà phát triển Blue Archive và các rắc rối về tiền thưởng" đã cơ bản xác nhận rằng những người đã rời đi không rời đi một cách suôn sẻ hoặc không có tranh cãi như suy nghĩ ban đầu.</p>
+</li>
+<li><p>Cuộc phỏng vấn cũ của 김인 (Hwansang, cựu Giám đốc Nghệ thuật BA) nói về <a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=1900">cách quầng sáng là bản sắc IP của Blue Archive</a>.</p>
+</li>
+<li><p>Khiếu nại từ cộng đồng về việc sử dụng quầng sáng gần như giống hệt nhau trong hình ảnh chính của Project KV:</p>
+</li>
+</ul>
+<p><a target="_blank" href="https://arca.live/b/projectkv/114637257">Link 1</a><br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=7218">Link 2</a> (Giải thích tốt)<br /><a target="_blank" href="https://gall.dcinside.com/mgallery/board/view/?id=projectkv&amp;no=3531">Link 3</a> (Phản ứng của người Nhật)<br /><a target="_blank" href="https://arca.live/b/projectkv/114707097">Link 4</a> (Phản ứng của người Nhật)</p>
+<p><strong>Sau 01.09</strong></p>
+<ul>
+<li><p>(Trò đùa rằng trò chơi mới của NCSoft là <a target="_blank" href="https://arca.live/b/projectkv/115265240?mode=best&amp;p=1">호연 ít nhất đã thắng thế hơn KV</a>; 호연 được coi là meme của các meme trong thể loại trò chơi này, nhưng ít nhất nó là IP gốc).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115255257?mode=best&amp;p=1">Tranh cãi dịch thuật</a> liên quan đến isakusan từ sự kiện Gehenna - Hyakkiyako có liên quan đến sự cố này không rõ liệu ông ta có tham gia hay không).</p>
+</li>
+<li><p>(Thông tin về công ty có khả năng đã tạo ra trang web KV; <a target="_blank" href="https://arca.live/b/projectkv/115251207?mode=best&amp;p=1">cơ sở hạ tầng sử dụng cực kỳ lỗi thời</a>, chẳng hạn như phần mở rộng .eot).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115241139?mode=best&amp;p=1">Tranh cãi về tên gian hàng Comiket</a>).</p>
+</li>
+<li><p>(Ai đó đã mua <a target="_blank" href="http://project-kv.com">project-kv.com</a> và liên kết nó với trang chủ chính thức của Blue Archive <a target="_blank" href="https://arca.live/b/projectkv/115228085?mode=best&amp;p=1">như một trò đùa</a>).</p>
+</li>
+</ul>
+<p>Trang web chính thức của Project KV là projectkv.co.kr, vì vậy đây không phải là trang web KV thực sự.<br />Ai đó cũng đã mua tên miền <a target="_blank" href="http://project-kv.net">project-kv.net</a> và <a target="_blank" href="https://arca.live/b/projectkv/115233461?mode=best&amp;p=1">liên kết nó với PV thứ 4</a> ở giây 52, nơi Chủ tịch GSC nói câu "Người lớn có trách nhiệm".</p>
+<ul>
+<li><p>(PD Yongha Kim đã retweet bài đăng của Arisu Archive trên X (Twitter) đơn giản chỉ ra rằng <a target="_blank" href="https://arca.live/b/projectkv/115228304?mode=best&amp;p=1">Project KV và Blue Archive không liên quan gì đến nhau</a>, đập tan mọi hy vọng rằng đây là một chiến dịch tiếp thị lan truyền).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115216170?mode=best&amp;p=2">Các bình luận về PV</a> của KV).</p>
+</li>
+<li><p>(Ai đó chỉ ra rằng mô tả câu chuyện của KV <a target="_blank" href="https://arca.live/b/projectkv/115203203?mode=best&amp;p=2">chỉ là phần mở đầu của Blue Archive được viết lại</a>).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115204168?mode=best&amp;p=2">Bài đăng Twitter</a> từ các thành viên đã rời đi (DoReMi Mx2J) nói về Comiket tháng 12).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115203087?mode=best&amp;p=3">Văn bản chính thức dịch sang tiếng Hàn</a>; hầu hết mọi người đồng ý rằng nó chỉ giống như phần mở đầu và tóm tắt của Blue Archive).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115203984">Phản ứng đơn lẻ của người Nhật</a> được dịch sang tiếng Hàn).</p>
+</li>
+<li><p>(Bình luận tiếng Nhật về việc ngay cả trong đoạn văn ngắn này cũng có <a target="_blank" href="https://arca.live/b/projectkv/115222194?mode=best&amp;p=2">sự dịch thuật không tự nhiên</a>).</p>
+</li>
+<li><p>(Video <a target="_blank" href="https://arca.live/b/projectkv/115219813">so sánh minh họa nhân vật BA trực tiếp với minh họa KV</a>).</p>
+</li>
+</ul>
+<p><strong>Miscellaneous (Thông tin khác):</strong></p>
+<ul>
+<li><p>(Hình ảnh KV <a target="_blank" href="https://arca.live/b/projectkv/115204189">với logo Blue Archive</a> qua Photoshop).</p>
+</li>
+<li><p>(Sự trùng hợp không liên quan của <a target="_blank" href="https://arca.live/b/projectkv/115230442">một người hóa trang thành hình đại diện Pikachu của isakusan năm ngoái</a>, hoàn chỉnh với kiếm).</p>
+</li>
+<li><p>(Hifumi <a target="_blank" href="https://arca.live/b/projectkv/115228976">gặp gỡ</a> cô gái áp phích của KV).</p>
+</li>
+<li><p>(<a target="_blank" href="https://arca.live/b/projectkv/115240625">Meme</a> của một nghệ sĩ về isakusan).</p>
+</li>
+<li><p>(Ai đó đã <a target="_blank" href="https://arca.live/b/projectkv/115384686?p=1">mạo danh tài khoản KV</a> với tên tài khoản 'Dynarnis One').</p>
+</li>
+<li><p>Ai đó chỉ ra rằng trang web của Dynamis One vẫn có dòng mã đầu tiên được đặt là <a target="_blank" href="https://arca.live/b/projectkv/115366249"><code>lang = “en”</code></a> mặc dù trang web không phải bằng tiếng Anh trên Arcalive.</p>
+</li>
+<li><p>Cosplayer <a target="_blank" href="https://arca.live/b/projectkv/115340115?mode=best&amp;p=2">gián tiếp chỉ trích</a> Project KV (kiểm tra góc dưới bên phải của hình ảnh).</p>
+</li>
+</ul>
+]]></content:encoded></item><item><title><![CDATA[Cách sử dụng Nitro hiệu quả nhất]]></title><description><![CDATA[Bài viết này mang tính dằn mặt khá cao, cân nhắc kỹ trước khi buông bất cứ lời gì. Hãy giữ cái đầu tỉnh táo trước khi phản biện với t. Nếu cảm thấy cái thứ…]]></description><link>https://hn.dh6k.vip/personal-nitro-guide-vi</link><guid isPermaLink="true">https://hn.dh6k.vip/personal-nitro-guide-vi</guid><category><![CDATA[Discord Nitro]]></category><category><![CDATA[guide]]></category><category><![CDATA[duya sensei]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sun, 01 Sep 2024 15:27:25 GMT</pubDate><content:encoded><![CDATA[<h3 id="heading-disclaimer">Disclaimer:</h3>
+<ol>
+<li><p>Bài viết này mang tính dằn mặt khá cao, cân nhắc kỹ trước khi buông bất cứ lời gì. Hãy giữ cái đầu tỉnh táo trước khi phản biện với t.</p>
+</li>
+<li><p>Nếu cảm thấy cái thứ này không xứng đáng đối với bạn thì tốt nhất là <strong>không nên mua</strong>, kẻo phí tiền vào những thứ không đáng, để rồi cuối tháng đói mốc meo và phải cầm hơi bằng mì gói sống qua ngày.</p>
+</li>
+<li><p>Vì đây là 1 bài hướng dẫn vào 1 thời điểm nhất định, nên có thể trong tương lai sẽ lỗi thời. Mặc dù vậy t sẽ chỉnh lí bổ sung khi cần thiết.</p>
+</li>
+</ol>
+<h2 id="heading-mo-dau-bai-viet">Mở đầu bài viết:</h2>
+<p>Xin chào tất cả mọi người đã quan tâm đến cái bài này của t.</p>
+<p>Discord Nitro, 1 trong số những cách để có thể đi khè khắp nền tảng về cái sự <em>con nhà đại gia</em>, hoặc dùng khi có nhu cầu cao trên nền tảng. Có lẽ rất nhiều bạn mong muốn có cái thứ này chỉ để làm màu hay làm cái gì đó (mình thật sự ko quan tâm), và cũng có những ý kiến trái chiều xoay quanh cái gói thuê bao này trên reddit hay x. Vậy nên, trong cái bài viết <em>chứa đầy <s>sự ga tô và cay cú</s></em> <em>sự mỉa mai mang tính cá nhân</em> này, t sẽ chỉ cho mn cách tận dụng tối đa cái thứ này sao cho đáng đồng tiền nhất có thể.</p>
+<h3 id="heading-tong-quan-ve-discord-nitro">Tổng quan về Discord Nitro:</h3>
+<p>Hiện tại có 2 loại thuê bao nitro, đó là <em>Nitro basic</em> và <strong><em>Nitro boost</em></strong>.</p>
+<p><em>Nitro basic</em> thì sẽ có giá rẻ hơn là 42000 VND, tuy nhiên nếu bạn dùng nó thì sẽ cảm thấy như vứt tiền qua cửa sổ vậy, vì tính mở rộng của nó thực sự quá ít. Tuy nhiên nếu chỉ có nhu cầu vừa đủ thì đây sẽ là gói phù hợp với bạn. Và đây cũng là gói chim mồi để công ty này hướng bạn đến cái thứ tốt hơn dưới đây.</p>
+<p>Đó chính là <strong>Nitro boost</strong>, hay được gọi tắt với cái tên <strong>Nitro</strong>. Đây là cái gói nitro mà bạn sẽ thường xuyên bắt gặp cũng như là thấy được trong suốt quá trình sử dụng nền tảng. Với mức giá chính hãng là 113000 VND thì nó đắt gần gấp 3 lần cái basic, và đối với sinh viên nghèo thì thực sự khá khó nuốt.</p>
+<p>Bài hướng dẫn này chủ yếu xoay quanh cái gói nitro thường này, <s>và để dằn mặt mấy thằng liều đi nạp mà ko biết rõ những gì mình làm</s> cũng như là những đánh giá và trải nghiệm của t sau 1 khoảng thời gian dài dùng qua cái thứ ma xui quỷ khiến này. Và chúng ta cùng đến với mục đầu tiên:</p>
+<h2 id="heading-tong-quan-ve-cac-tinh-nang-trong-nitro">Tổng quan về các tính năng trong Nitro.</h2>
+<ol>
+<li><p><strong>Không giới hạn super reactions</strong>: 1 trong những cách để đi khè với đám bạn về việc bạn đã nạp lần đầu (hoặc lần thứ n). Trước đây thì chỉ có 5 lần mỗi tháng, tuy nhiên giờ đã thành unlimited nên tần suất sử dụng thì còn tùy vào bạn thôi.</p>
+</li>
+<li><p><strong>Bộ emoji ở toàn bộ server bạn đang tham gia</strong>: Cái này cũng khá hay, dùng để đi tấu hài khá hiệu quả, tuy nhiên nếu chỉ dùng mấy thứ này thì nitro basic là quá đủ.</p>
+</li>
+<li><p><strong>Stickers tùy chỉnh khắp nơi</strong>: cũng giống như cái số 2, bạn cũng có thể sử dụng toàn bộ stickers từ những server bạn đã tham gia, và lời khuyên vẫn vậy.</p>
+</li>
+<li><p><strong>Biểu tượng ứng dụng tùy chỉnh</strong>: Chỉ là 1 tính năng thay đổi app icon ko hơn không kém, Và cùng 1 chức năng tương tự thì ta hoàn toàn có thể dùng Apktool M (Android) để thay đổi icon trước khi sideload/cài đặt. Và <em>có thể overcome được bằng vencord/bunny</em>, các giải pháp này đều foss và đều an toàn để sử dụng.</p>
+</li>
+<li><p><strong>Chia sẻ file lớn hơn:</strong> Đây là thứ mà các bạn trẻ mới nạp lần đầu sẽ chắc chắn <strong>gần như là không biết hoặc là không buồn dùng đến</strong>. Bạn có thể chia sẻ bất kì thứ gì miễn là nó dưới 500MB. Có thể là tệp dữ liệu, tệp APK, tệp PDF Light novel, hoặc 1 file Save game được nén dưới dạng zip hoặc rar.</p>
+</li>
+<li><p><strong>Stream lên đến 4k 60fps</strong>: Đây cũng là 1 tính năng mà các bạn trẻ ít dùng đến hoặc không dám dùng đến kịch khung vì giới hạn phần cứng hiện có (t tưởng chúng mày phải có 1gbps và pc cấu hình khủng long cơ chứ). Nói chung là cứ vào vc mà share màn hình thì cứ bật max ping luôn đi (miễn là phần cứng của bạn đủ gánh được, ai sợ thì đi về). Và nó <em>có thể overcome được bằng vencord/bunny</em>, các giải pháp này đều foss và đều an toàn để sử dụng.</p>
+</li>
+<li><p><strong>2 lần Boost miễn phí + giảm giá 30% cho những lần boost sau đấy</strong>: Có lẽ đây chính là mục đích ban đầu của các bạn khi đăng kí cái thứ này. Bạn muốn support cho server mà mình đang sở hữu, đang theo đuổi hoặc đang yêu thích, điều đó là hoàn toàn bình thường, t hoàn toàn tôn trọng.</p>
+<p> Ngoài ra các bạn còn có huy hiệu Booster màu hồng bên cạnh huy hiệu Nitro ở mục thứ 11.</p>
+</li>
+<li><p><strong>Avatar, banner có thể chuyển động, cũng như là 2 tone màu cho profile</strong>: Cái này chính xác là <em>phông bạt</em> của bạn trên Discord, nên bạn muốn trang trí chúng theo 1 cách đẹp và vừa ý mình nhất có thể, t hiểu mà. Chỉ có 1 điều nên nhớ là giới hạn file avatar và banner đều là 10MB cả. Tone màu cho profile <em>có thể overcome được bằng vencord/bunny</em>, các giải pháp này đều foss và đều an toàn để sử dụng.</p>
+</li>
+<li><p><strong>Truy cập sớm vào tính năng Clips</strong>: Đây là 1 tính năng mà t cũng như là các bạn trẻ chắc chắn là ít dùng, hoặc không bao giờ biết đến sự tồn tại của nó. Tuy nhiên vào 1 lúc nào đó có thể nó sẽ khá hữu ích.</p>
+</li>
+<li><p><strong>Profile tùy chỉnh cho từng server</strong>: hay còn gọi là <em>nhiều phông bạt hơn</em>, cũng là 1 lí do nữa khiến các bạn chi tiền ra nạp. Bạn không muốn cái đám trong server kia biết về cái phông thật sự của bạn chỉ bằng 1 cái soi profile, vì thế nên tận dụng triệt để luôn nếu ngại những thành phần đấy.</p>
+</li>
+<li><p><strong>Huy hiệu Nitro trên hồ sơ của bạn</strong>: 1 cách để cái công ty này vinh danh bạn cũng như những người cùng suy nghĩ giống bạn. Và cái này cũng có trên gói basic nên ko có gì đặc biệt lắm ở đây.</p>
+</li>
+<li><p><strong>Nền video tùy chỉnh</strong>: 1 tính năng ít các bạn trẻ sử dụng vì 90% thời gian các bạn tham gia vc mà ko bật cam. Nhưng nếu bật thì có thể tận dụng nó bằng cách để background nào nó nghệ thuật 1 tí, hoặc hoà mình giữa thiên nhiên.</p>
+</li>
+<li><p><strong>Tham gia lên đến 200 máy chủ khác nhau</strong>: Trừ khi bạn là 1 con nghiện sử dụng cái này, còn lại đối với nhu cầu cơ bản bình thường thì chưa đến 100 server đâu nên cũng chả đáng để tận dụng.</p>
+</li>
+<li><p><strong>Tin nhắn dài hơn lên đến 4000 kí tự</strong>: Đây chắc chắn là 1 tính năng mà các bạn <strong>rất ít hoặc hầu như không thèm dùng</strong>. Trước khi có thể tự mình viết blog hẳn trên 1 trang riêng thì đây chắc chắn là tính năng mà các bạn sẽ phải tận dụng <strong><em>càng triệt để càng tốt</em></strong> nếu muốn cải thiện kĩ năng viết lách của bản thân, hoặc thường xuyên thông báo 1 tin nhắn dài, hoặc viết báo và làm phóng viên thường xuyên. Đừng ngại ngần nói ra hết những suy nghĩ, tâm tư, nguyện vọng, tình cảm của bạn trong 1 lời nhắn, nếu ko sẽ rất phí cái gói này, t nói thật.</p>
+</li>
+<li><p><strong>Màu sắc trên trang appearance</strong>: Chỉ làm đẹp giao diện cho bản thân bạn mà thôi, ko có giá trị thực tiễn gì, và <em>có thể overcome được bằng vencord.</em></p>
+</li>
+<li><p><strong>Âm thanh tùy chọn khắp nơi</strong>: Giống như mục 2 và 3 trong danh sách này, tuy nhiên nó sẽ ko có trong gói basic. Lời khuyên là đừng nên dùng tùy tiện nếu ko muốn bị timeout thẳng cẳng.</p>
+</li>
+<li><p><strong>Âm thanh tùy chỉnh khi vào vc</strong>: Như mục 16, cái này cũng nên chọn lọc kĩ lưỡng trước khi dùng, nếu ko muốn staff ngứa tai mà timeout bạn thẳng cẳng.</p>
+</li>
+<li><p><strong>Giá ưu đãi trong shop</strong>: Mặc dù đã có ưu đãi rồi nhưng mà nó vẫn trông khá là hút máu, nhất là mấy món hợp tác như kiểu Valorant. Và giá trị lâu dài thì nó chẳng xứng đáng với số xiền đã bỏ ra, do nếu xoá tài khoản đi hoặc tài khoản bị terminated thì chắc chắn mất trắng. Do vậy cần <strong>chi tiêu hợp lí</strong> hoặc <strong>dùng các item có sẵn hoặc miễn phí</strong>.</p>
+</li>
+<li><p>3 Nitro dùng thử cho bạn bè: 1 chiêu bài kinh doanh của cái công ty này, nếu bạn bè của bạn apply thì nó sẽ đòi credit card, tương tự như Nitro dùng thử vậy.</p>
+</li>
+</ol>
+<h3 id="heading-cam-nhan-ca-nhan-khi-dung-nitro">Cảm nhận cá nhân khi dùng Nitro.</h3>
+<p>Đối với t thì cái gói này khá hữu ích, 1 phần vì t giao tiếp khá nhiều trên đấy bên cạnh messenger ra. Tuy vậy thì có 1 số cái t thấy nó ko thật sự xứng đáng với số tiền mình đã bỏ ra, và có thể overcome được chỉ với các giải pháp foss trên github, vậy nên lời khuyên của t là <strong>cần cân nhắc kĩ trước khi quyết định chi tiền ra mua cái này.</strong> Mặc dù t đã nói ở trên cái Disclaimer ở đầu bài nhưng t xin được phép nhắc lại 1 lần nữa ở đây.</p>
+]]></content:encoded></item><item><title><![CDATA[Cách để tạo 1 bản Chrome Enterprise tự trồng tự ăn. Phần 1: Múc Domain và tạo tài khoản Google Admin (kèm chỗ mua domain giá rẻ).]]></title><description><![CDATA[Xin chào tất cả mọi người, mình là dh6k. Chắc hẳn mọi người đã từng nghe đến Chrome Enterprise rồi phải không nhỉ? Nói sơ qua thì đấy là 1 phiên bản không…]]></description><link>https://hn.dh6k.vip/cach-de-tao-1-ban-chrome-enterprise-tu-trong-tu-an-phan-1-muc-domain-va-tao-tai-khoan-google-admin-kem-cho-mua-domain-gia-re</link><guid isPermaLink="true">https://hn.dh6k.vip/cach-de-tao-1-ban-chrome-enterprise-tu-trong-tu-an-phan-1-muc-domain-va-tao-tai-khoan-google-admin-kem-cho-mua-domain-gia-re</guid><category><![CDATA[#chrome enterprise]]></category><category><![CDATA[duya sensei]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Tue, 27 Aug 2024 16:57:44 GMT</pubDate><enclosure url="https://cdn.hashnode.com/res/hashnode/image/upload/v1724778024851/3a84404b-6ec8-45ef-9421-7e4eb9147ac3.jpeg" length="0" type="image/jpeg"/><content:encoded><![CDATA[<h3 id="heading-mieng-trau-la-dau-cau-chuyen">Miếng trầu là đầu câu chuyện</h3>
+<p>Xin chào tất cả mọi người, mình là dh6k.</p>
+<p>Chắc hẳn mọi người đã từng nghe đến Chrome Enterprise rồi phải không nhỉ?</p>
+<p>Nói sơ qua thì đấy là 1 phiên bản không khác gì mấy so với phiên bản Chrome thông thường, nhưng mà mình có thể tha hồ mà tuỳ biến cũng như là apply các cái policy (lên đến hơn 200 cái), cũng như có thể sideload hay cài trước bất kì extension nào mà mình mong muốn. Ngoài ra có thể apply được luôn vô kênh cập nhật Extended của Chrome, giúp trì hoãn việc cập nhật nhanh lên đến bản Chromium mới hơn, cũng như là ổn định hơn trong quá trình sử dụng.</p>
+<p>Biết là nó hay ho rồi đấy, nhưng mà làm thế nào để có thể được tận tay sử dụng, cũng như là tự mình quản lý cái Chrome Enterprise này và phân phối cho gia đình, người thân và bạn bè của mình sử dụng? Bài viết này sẽ là 1 cái hướng dẫn nho nhỏ từ 1 người cũng mới nhập môn cái kiểu này.</p>
+<p>Bài viết sẽ chia làm nhiều phần do thời lượng thực tế khá là dài và mình cũng không có ý định viết hết trong 1 bài để tránh nhàm chán trong khi đọc.</p>
+<p>Và chúng ta sẽ cùng bắt đầu với bước đầu tiên:</p>
+<h2 id="heading-mua-va-quan-ly-domain">Mua và quản lý Domain</h2>
+<p>Ở đây mình sẽ tin dùng Spaceship.</p>
+<p>Trước hết cần phải giải thích Spaceship là cái gì đã. Spaceship chính là công ty con của Namecheap.com, vì nhận thấy cái trang web gốc khá là lỗi thời cũng như lợi thế cạnh tranh gần như không còn nữa, nên ban lãnh đạo của Namecheap đã quyết định thành lập ra Spaceship với 1 đường lối lãnh đạo khác biệt, cùng với giao diện dễ làm quen, dễ sử dụng và hợp thời hơn. Những ai tin tưởng dùng Namecheap thì việc qua Spaceship sẽ dễ dàng hơn thôi, cũng giống như là việc nhảy từ Oppo sang Oneplus hay là Realme vậy.</p>
+<p>Sau đây là các bước mua domain giá rẻ:</p>
+<ol>
+<li><p>Vào trang web của <a target="_blank" href="https://www.spaceship.com">Spaceship</a>. Sau khi bấm vào sẽ ra giao diện như hình:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724773306490/d9c2fe59-d46e-4b8d-88e2-294b9c5997ef.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Nhập tên domain muốn mua vào cái ô "Search for a domain name..." ở hình trên. Có 1 mẹo mua domain để có thể tiết kiệm chi phí 1 cách tối đa, đó chính là <strong>Sử dụng ID Game mà mình đang chơi</strong> để múc domain với tên miền .xyz, mức giá quá phù hợp cho học sinh sinh viên (kể cả giá gia hạn cũng như vậy luôn, nếu chỉ có nhu cầu muốn tạo 1 email để dùng chrome enterprise thì như vậy là quá đủ rồi).</p>
+<p> Ví dụ cụ thể và sinh động: Ở đây bạn là người chơi 1 con game gacha như <em>Honkai: Star Rail,</em> và UID hiện tại của bạn là <em>802343568.</em> Vậy thì bạn nhập trong cái ô đấy là <strong>802343568.xyz</strong>, xong bấm Search là ra kết quả như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724773840768/80da1860-e071-4f1d-8ab0-0e27ac0f4b76.png" alt class="image--center mx-auto" /></p>
+<p> Ở đây bạn chỉ cần làm theo hướng dẫn trong suốt quá trình đấy. Sau khi múc xong 1 năm thì sẽ có 1 mục unbox để các bạn có thể chọn cho mình 1 dịch vụ đi kèm. Ở đây bạn có thể mua thêm Spacemail với giá chỉ từ 17k/tháng là có 1 email riêng gán luôn với tên miền, còn nếu ko có kinh phí thì có thể dùng email forwarding để tạo Google Admin account.</p>
+</li>
+<li><p>Sau khi tậu xong domain mới rồi, tiến hành vào <a target="_blank" href="https://www.spaceship.com/launchpad/">Launchpad</a>. Giao diện sẽ như hình:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724774060763/5963fa4a-57f8-4c0f-a15a-7036e5eaddae.png" alt class="image--center mx-auto" /></p>
+<p> Cuộn xuống xong chọn <strong>"Domain list"</strong> như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724774131737/c978228d-8831-49cb-afb3-f053e4d9467a.png" alt class="image--center mx-auto" /></p>
+<p> Sau khi chọn xong sẽ có giao diện như hình dưới đây:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724774175652/ade2bab3-7f0d-473d-b22d-cf50ac88544d.png" alt class="image--center mx-auto" /></p>
+<p> Ở đây thì mình đã mua trước 1 domain theo cái mẹo phía trên, sử dụng UID Osu của mình xong kết hợp với đuôi <strong>.xyz</strong> và thế là thành 1 domain premium giá siêu rẻ. Trong hình của các bạn có thể khác với mình do cái các bạn mua là cái domain đầu tiên.</p>
+</li>
+<li><p>Bấm vào domain vừa mới mua, sẽ ra giao diện như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724774436737/a21405f2-fc95-453f-955e-9a4dfc6ed2d6.png" alt class="image--center mx-auto" /></p>
+<p> Các bạn hướng đến cái chỗ bên phải, cuộn xuống dưới rồi chọn <strong>"Email forwarding"</strong>. Ở đây mình sẽ chỉ cho những ai ko có nhu cầu dùng mail hosting để tiết kiệm chi phí 1 cách tối đa. Sau khi chọn xong thì giao diện sẽ như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724774588902/c35e7c0a-7806-443e-be8d-111141121ec9.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Ở đây các bạn nhập địa chỉ email cá nhân vào cái ô phía dưới chỗ <strong>"Forwarding to"</strong>, cái này phải là email <strong>outlook/proton/duckduckgo</strong> bởi vì khi nhập vào gmail sẽ bị lỗi <em>redirect too many times</em> rất khó chịu. Cũng đừng dùng mail 10 phút vì sẽ gần như ko thể khôi phục đc email về sau này.</p>
+</li>
+<li><p>Sau khi nhập xong thì bấm vào nút <strong>"Set rule"</strong></p>
+</li>
+</ol>
+<p>Vậy là chúng ta đã xong bước đầu tiên, mua domain giá siêu rẻ và cấu hình mail forwarding. Bây giờ sẽ là bước tiếp theo</p>
+<h2 id="heading-tao-tai-khoan-google-admin-va-su-dung-goi-chrome-enterprise-core">Tạo tài khoản Google Admin và sử dụng gói Chrome Enterprise Core</h2>
+<ol>
+<li><p>Đầu tiên chúng ta sẽ vào <a target="_blank" href="https://enterprise.google.com/signup/chrome-browser/email?origin=cbcm&amp;source=browsermgmt">trang web này của google</a> để tiến hành tạo 1 tài khoản Google Admin và sử dụng gói Chrome Enterprise Core. Sau khi bấm vào link thì trang web sẽ như hình dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724775389110/168e20dc-b1df-49de-b360-75a3f43f29bd.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Nhập email với domain đã mua ở mục đầu, ví dụ ở đây là <strong>"demo@331660999.xyz"</strong>. Xong rồi bấm <strong>"Next"</strong>:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724775544194/2da0268a-16e3-487c-b01e-b24e050dd123.png" alt class="image--center mx-auto" /></p>
+</li>
+<li><p>Khi xuất hiện hình này thì vào <strong>hòm thư email cá nhân</strong> đã nhập ở mục đầu tiên ở chỗ <strong>"Forwarding to"</strong>:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724775636248/9b01d9b9-08d4-4ea9-accf-b03f6b422831.png" alt class="image--center mx-auto" /></p>
+<p> Sau đó bấm vào <strong>"Verify email address"</strong> như hình bên dưới:</p>
+<p> <img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724775691857/8e1f02bf-1c2c-4f33-b148-5e581bcff8e3.png" alt class="image--center mx-auto" /></p>
+</li>
+</ol>
+<p>Tiếp đến sẽ là khai báo tên tuổi theo mẫu như hình dưới:</p>
+<p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724775752737/ae672aca-96b2-4947-b24d-0293852d27d4.png" alt class="image--center mx-auto" /></p>
+<p>ở đây cứ khai báo như bình thường:</p>
+<div class="hn-table">
+<table>
+<thead>
+<tr>
+<td>Trường mục</td><td>Giá trị</td></tr>
+</thead>
+<tbody>
+<tr>
+<td>First name</td><td>Tên</td></tr>
+<tr>
+<td>Last name</td><td>Họ</td></tr>
+<tr>
+<td>Company name</td><td>Nhập tên gì cũng được</td></tr>
+<tr>
+<td>Country</td><td>Cứ chọn đúng nơi mình sống</td></tr>
+<tr>
+<td>Job title</td><td>Nhập cái gì cũng được</td></tr>
+<tr>
+<td>Number of employees</td><td>Cứ để là 1</td></tr>
+<tr>
+<td>Phone</td><td>Nhập số điện thoại của bạn vào</td></tr>
+<tr>
+<td>Communication preferences</td><td>2 ô chọn là no</td></tr>
+</tbody>
+</table>
+</div><p>Xong rồi bấm vào "Continue"</p>
+<ol start="4">
+<li><p>Sau đó thì chúng ta sẽ thấy màn hình như hình dưới. Bấm chọn <strong>"Google Workspaces Essential Starter"</strong> nếu có nhu cầu, ở đây t chọn vì nó có sẵn luôn. Sau đó bấm <strong>Next</strong>.</p>
+</li>
+<li><p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724777335424/804e5389-72b0-497b-801d-4f962ecd7691.png" alt class="image--center mx-auto" /></p>
+<p> Sau đó màn hình sẽ như hình dưới, lúc này chúng ta sẽ nhập mật khẩu rồi ấn vào nút "Next".</p>
+</li>
+<li><p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724777417368/0941f864-97b6-4eab-99ad-8b8456de671d.png" alt class="image--center mx-auto" /></p>
+<p> Bấm xong đợi khi nào thấy hình này là thành công rồi.</p>
+</li>
+<li><p><img src="https://cdn.hashnode.com/res/hashnode/image/upload/v1724777445835/e4f1ca9a-278e-4771-88cd-bc7b11ab49e4.png" alt class="image--center mx-auto" /></p>
+</li>
+</ol>
+<p>Vậy là chúng ta đã hoàn thành xong những thứ cơ bản, được coi là khởi đầu cho việc sử dụng Google Enterprise tự trồng tự ăn. Ở kì sau chúng ta sẽ cùng nhau học cách triển khai Chrome enterprise cho 1 máy tính, thiết đặt các chính sách.</p>
+<p>Nếu thấy bài này hay thì hãy ủng hộ, cũng như là đẩy cho những ai chưa biết. Còn nếu thấy bài này có gì sai sót hay góp ý, hay có ý kiến gì cần thắc mắc thì hãy comment xuống phía dưới, hoặc cùng thảo luận trong server.</p>
+]]></content:encoded></item><item><title><![CDATA[[reup] Trọn bộ userscript giúp nâng cao trải nghiệm YouTube.]]></title><description><![CDATA[Trong này có: 1, Disable YouTube AutoPause và Disable YouTube Music AutoPause: giúp tắt tính năng tích hợp của YouTube hiển thị "Video bị tạm dừng. Tiếp…]]></description><link>https://hn.dh6k.vip/reup-tron-bo-userscript-giup-nang-cao-trai-nghiem-youtube</link><guid isPermaLink="true">https://hn.dh6k.vip/reup-tron-bo-userscript-giup-nang-cao-trai-nghiem-youtube</guid><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Thu, 22 Aug 2024 17:30:29 GMT</pubDate><content:encoded><![CDATA[<h3 id="heading-tac-gia-cy-fung">Tác giả: CY Fung</h3>
+<p>Trong này có:</p>
+<p>1, Disable YouTube AutoPause và Disable YouTube Music AutoPause: giúp tắt tính năng tích hợp của YouTube hiển thị "Video bị tạm dừng. Tiếp tục xem?" và "Vẫn đang xem? Video sẽ tạm dừng sớm" sau một thời gian không hoạt động.</p>
+<p>2, Use YouTube AV1: Chất lượng cao hơn và độ nén cao hơn, khuyến khích cho Windows 11 và MacOS, tuy nhiên AV1 chưa được hỗ trợ trong giải mã phần cứng.</p>
+<p>3, YouTube JS Engine Tamer: đã nói ở trên (https://discord.com/channels/960076480916901948/1168563806180483072/1176170882431995945)</p>
+<p>4, YouTube Super Fast Chat: Tăng hiệu suất cho mục "Trò chuyện trực tiếp" trong Stream video.</p>
+<p>5, YouTube: Force Animated-Rolling-Number: Buộc YouTube sử dụng hoạt ảnh cuộn số cho phát trực tiếp trên YouTube</p>
+<p>6, YouTube: Force html5_exponential_memory_for_sticky: Ngăn YouTube tự động thay đổi chất lượng video trong quá trình Phát trực tiếp trên YouTube.</p>
+<p>Cách cài:</p>
+<p><code>1, Có sẵn Tampermonkey hay Violentmonkey (ở đây t dùng Tampermonkey).</code></p>
+<p><code>2, Tự tìm đống này trên geasefork đi nhá, vì file bị thất lạc rồi (copy cái tên chép vào ô tìm kiếm cho nhanh :v)</code></p>
+<p><code>3, Cài như bình thường khi cài userscript ấy.</code></p>
+]]></content:encoded></item><item><title><![CDATA[CÀI Arch linux cho máy lap ghẻ legacy]]></title><description><![CDATA[UEFI biết cài rồi nhma chưa viết thôi ahihi.]]></description><link>https://hn.dh6k.vip/cai-arch-linux-cho-may-lap-ghe-legacy</link><guid isPermaLink="true">https://hn.dh6k.vip/cai-arch-linux-cho-may-lap-ghe-legacy</guid><category><![CDATA[Tutorial]]></category><category><![CDATA[Linux]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sun, 23 Jan 2022 14:45:56 GMT</pubDate><enclosure url="https://cdn.hashnode.com/res/hashnode/image/upload/v1642950407002/UTTwkn1Rp.jpeg" length="0" type="image/jpeg"/><content:encoded><![CDATA[<p>Spec máy mình là: Core i3-2350m, 4gb ram, 500gb hdd, vga onboard (hd 3000).
+sau đây là chi tiết cách cài:</p>
+<p>-1, tạo usb boot có bộ cài arch mới nhất. cắm vào máy, mở f12 boot menu, chọn usb storage device, sau đó là boot to arch linux dòng đầu tiên.</p>
+<p>-2, Kết nối wifi (ethernet ko cần)</p>
+<pre><code>$ iwctl
+$ station wlan<span class="hljs-number">0</span> connect <span class="hljs-string">"Tên Wifi"</span>
+</code></pre><p>+<code>passphrase</code>: điền mật khẩu vào</p>
+<p>-3, danh sách phân vùng:</p>
+<pre><code>$ lsblk
+</code></pre><p>-4, phân vùng ổ đĩa (sda1 chính, sda2 swap)
++đầu tiên hãy thiết lập ổ đĩa</p>
+<pre><code>$ cfdisk <span class="hljs-operator">/</span>dev<span class="hljs-operator">/</span>sda
+</code></pre><p>+để phân vùng sda1 là <code>linux</code>, sda2 là <code>linux swap/solaris</code>, sau đó chọn <code>write</code> &gt; <code>yes</code>, sau đó exit.
++sau đó format:</p>
+<pre><code>$ mkfs.ext4 <span class="hljs-operator">/</span>dev<span class="hljs-operator">/</span>sda1
+$ mkswap <span class="hljs-operator">/</span>dev<span class="hljs-operator">/</span>sda2 
+$ swapon <span class="hljs-operator">/</span>dev<span class="hljs-operator">/</span>sda2
+</code></pre><p>-5, mount các phân vùng lại:</p>
+<pre><code>$ mount <span class="hljs-operator">/</span>dev<span class="hljs-operator">/</span>sda1 <span class="hljs-operator">/</span>mnt
+</code></pre><p>-6, reflect mirror sang Việt Nam cho nó nhanh (thực ra câu lệnh này là tìm các server mirror nhanh nhất của 1 quốc gia mà máy có thể kết nối được, nhma Việt Nam chỉ có mỗi cái server bizflycloud thôi.)</p>
+<pre><code>$ reflector <span class="hljs-operator">-</span><span class="hljs-operator">-</span>verbose <span class="hljs-operator">-</span><span class="hljs-operator">-</span>country <span class="hljs-string">'Vietnam'</span> <span class="hljs-operator">-</span>l <span class="hljs-number">10</span> <span class="hljs-operator">-</span>p http <span class="hljs-operator">-</span><span class="hljs-operator">-</span>sort rate <span class="hljs-operator">-</span><span class="hljs-operator">-</span>save <span class="hljs-operator">/</span>etc<span class="hljs-operator">/</span>pacman.d/mirrorlist
+</code></pre><p>-7, bắt đầu cài đặt arch linux (dùng xfce4,lightdm)</p>
+<pre><code>$ pacstrap <span class="hljs-operator">/</span>mnt base base<span class="hljs-operator">-</span>devel linux linux<span class="hljs-operator">-</span>firmware linux<span class="hljs-operator">-</span>headers vim sudo nano xfce4 xfce4<span class="hljs-operator">-</span>goodies xorg xorg<span class="hljs-operator">-</span>init lightdm lightdm<span class="hljs-operator">-</span>gtk<span class="hljs-operator">-</span>greeter git pulseaudio pulseaudio<span class="hljs-operator">-</span>equalizer
+</code></pre><ul>
+<li>đợi khoảng 4-15p </li>
+</ul>
+<p>-8, tạo file <code>fstab</code>:</p>
+<pre><code>$ genfstab <span class="hljs-operator">-</span>U <span class="hljs-operator">-</span>p <span class="hljs-operator">/</span>mnt <span class="hljs-operator">&gt;</span><span class="hljs-operator">&gt;</span> <span class="hljs-operator">/</span>mnt<span class="hljs-operator">/</span>etc<span class="hljs-operator">/</span>fstab
+$ cat <span class="hljs-operator">/</span>mnt<span class="hljs-operator">/</span>etc<span class="hljs-operator">/</span>fstab
+</code></pre><p>-9, đăng nhập vào arch đã cài trong ổ cứng:</p>
+<pre><code>$ arch<span class="hljs-operator">-</span>chroot <span class="hljs-operator">/</span>mnt
+</code></pre><p>-10, thiết lập locale (EN_US.UTF-8)</p>
+<pre><code><span class="hljs-comment"># nano /etc/locale.gen</span>
+</code></pre><ul>
+<li>trong nano bỏ dấu thăng ở chỗ <code>en_US.UTF-8</code>
+ctrl + O để lưu, ctrl + X để thoát</li>
+</ul>
+<pre><code><span class="hljs-comment"># locale-gen</span>
+<span class="hljs-comment"># echo LANG=EN_US.UTF-8 &gt; /etc/locale.conf</span>
+<span class="hljs-comment"># export LANG=EN_US.UTF-8</span>
+</code></pre><p>-11, chỉnh múi giờ (GMT/UTC + 7):</p>
+<pre><code># ln -sf /usr/<span class="hljs-keyword">share</span>/zoneinfo/Asia/Ho_Chi_Minh /etc/<span class="hljs-built_in">localtime</span>
+# hwclock <span class="hljs-comment">--systohc --utc</span>
+</code></pre><p>-12, thiết lập hostname <code>n5110</code>, host:</p>
+<pre><code><span class="hljs-comment"># echo n5110 &gt; /etc/hostname</span>
+<span class="hljs-comment"># nano /etc/hosts</span>
+</code></pre><ul>
+<li>viết cách dòng dưới cùng 1 dòng:</li>
+</ul>
+<pre><code>127<span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.1</span> <span class="hljs-selector-tag">localhost</span>
+<span class="hljs-selector-pseudo">::1</span> <span class="hljs-selector-tag">localhost</span>
+127<span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.1</span> <span class="hljs-selector-tag">n5110</span><span class="hljs-selector-class">.localdomain</span> <span class="hljs-selector-tag">n5110</span>
+</code></pre><p>ctrl + O, ctrl + X</p>
+<p>-13, tạo root password</p>
+<pre><code><span class="hljs-comment"># passwd</span>
+</code></pre><ul>
+<li>nhập password sau đó nhập lại password 1 lần nữa rồi nhấn enter</li>
+</ul>
+<p>-14, thêm người dùng và set password:</p>
+<pre><code><span class="hljs-comment"># useradd -mG lp,network,power,storage,wheel,sys,log dldkk</span>
+<span class="hljs-comment"># passwd dldkk</span>
+</code></pre><ul>
+<li>nhập password và sau đó nhập lại password, tương tự như bước 13.</li>
+</ul>
+<p>-15, thêm user vào sudoers:</p>
+<pre><code><span class="hljs-comment"># nano /etc/sudoers</span>
+</code></pre><ul>
+<li>nhập sau dòng root:</li>
+</ul>
+<pre><code>dldkk <span class="hljs-keyword">ALL</span>=(<span class="hljs-keyword">ALL</span>) <span class="hljs-keyword">ALL</span>
+</code></pre><ul>
+<li>uncomment ở chỗ <code>#wheel</code>, <code>#wheel (no pass)</code> và <code>#sudo</code>.
+ctrl + O, ctrl + X</li>
+</ul>
+<p>-16, Network Manager:</p>
+<pre><code><span class="hljs-comment"># pacman -S networkmanager</span>
+<span class="hljs-comment"># systemctl enable NetworkManager</span>
+</code></pre><p>-17, tạo bootloader (cụ thể là <code>grub</code> )cho legacy:</p>
+<pre><code><span class="hljs-comment"># mkinitcpio -p linux</span>
+<span class="hljs-comment"># pacman -S grub</span>
+<span class="hljs-comment"># grub-install /dev/sda</span>
+<span class="hljs-comment"># grub-mkconfig -o /boot/grub/grub.cfg</span>
+</code></pre><p>-18, thiết lập lightdm do mình đã cài từ trước đó:</p>
+<pre><code><span class="hljs-comment"># nano /etc/lightdm/lightdm.conf</span>
+<span class="hljs-section">[Seat:*]</span>
+....
+greeter-session=lightdm-gtk-greeter
+....
+</code></pre><ul>
+<li>ctrl + O, ctrl + X</li>
+</ul>
+<pre><code><span class="hljs-comment"># systemctl enable lightdm.service</span>
+</code></pre><p>-19, thoát ra và khởi đông lại máy</p>
+<pre><code><span class="hljs-comment"># exit</span>
+$ umount -R /mnt
+$ reboot
+</code></pre><ul>
+<li>Bây giờ có thể rút usb boot ra ngoài.</li>
+<li>Sau khi khởi động lại thành công</li>
+</ul>
+<p>20, kết nối wifi:</p>
+<pre><code>$ nmcli device wifi list
+$ nmcli device wifi <span class="hljs-keyword">connect</span> "Tên wifi" <span class="hljs-keyword">password</span> *mật khẩu wifi*
+</code></pre><p>  =&gt;và thế là xong.</p>
+<p>phần sau các bạn thích cài gì thì cài.
+DE thì khuyên dùng gnome, cài xong bỏ cái gói <code>gnome-software</code> đi cho nó nhẹ máy. Máy yếu thì khuyên dùng XFCE, LXDE, hay là wm như Openbox, i3,....
+Nhớ cài thêm <code>yay</code> nếu bạn muốn dùng AUR, <code>pamac</code> và <code>libpamac</code> cho nó dễ dùng.</p>
+<p>Ngoài ra còn có <code>chaotic-aur</code> giúp cài app aur build sẵnvới hướng dẫn chi tiết bằng tiếng Anh tại <a target="_blank" href="https://aur.chaotic.cx/">đây</a>.</p>
+]]></content:encoded></item><item><title><![CDATA[nội quy trang blog nhưng bê sang từ blog kia]]></title><description><![CDATA[hôm nay mình xin giới thiệu với các bạn trang blog cua mình trang blog này đc tạo ra là hoàn toàn miễn phí nói về CNTT và các thứ liên quan đó mà :) :) À…]]></description><link>https://hn.dh6k.vip/noi-quy-trang-blog-nhung-be-sang-tu-blog-kia</link><guid isPermaLink="true">https://hn.dh6k.vip/noi-quy-trang-blog-nhung-be-sang-tu-blog-kia</guid><category><![CDATA[general]]></category><dc:creator><![CDATA[duyanh hwengwuok]]></dc:creator><pubDate>Sun, 23 Jan 2022 14:34:32 GMT</pubDate><enclosure url="https://cdn.hashnode.com/res/hashnode/image/unsplash/hGV2TfOh0ns/upload/v1642947839755/eVX3KVDme.png" length="0" type="image/jpeg"/><content:encoded><![CDATA[<p> hôm nay mình xin giới thiệu với các bạn trang blog cua mình
+      trang blog này đc tạo ra là hoàn toàn miễn phí
+      nói về CNTT và các thứ liên quan đó mà :) :)
+      À, mình xin nói nội quy cho các bạn, những độc giả đang xem blog của mình như sau:</p>
+<pre><code>  <span class="hljs-number">1</span>. <span class="hljs-type">TUY</span>Ệ<span class="hljs-type">T</span> ĐỐ<span class="hljs-type">I</span> không dượ<span class="hljs-built_in">c</span> đăng bình luận vớ vẩn, tụ<span class="hljs-built_in">c</span> tĩu, mất dạy trên blog
+  <span class="hljs-number">2</span>. <span class="hljs-type">AE</span> khi xem blog phải <span class="hljs-built_in">c</span>ư xử hòa thuận, không phân chia bè phái
+  <span class="hljs-number">3</span>. <span class="hljs-type">Không</span> <span class="hljs-built_in">c</span>ó chuyện mình chia sẻ những video vớ vẩn, sexy như là spriderman elsa <span class="hljs-built_in">c</span>á<span class="hljs-built_in">c</span> thứ
+     (thự<span class="hljs-built_in">c</span> ra mấy <span class="hljs-built_in">c</span>ái này nó dead từ lâu rồi, bây h thay bằng vlad, nikita, nastya, cocomelon,... )
+  <span class="hljs-number">4</span>. <span class="hljs-type">N</span>ếu <span class="hljs-built_in">c</span>ó thắ<span class="hljs-built_in">c</span> mắ<span class="hljs-built_in">c</span> gì, hãy nhớ hỏi mình nhé! <span class="hljs-type">Mình</span> sẽ trả lời cho.
+  <span class="hljs-number">5</span>. Đây là trang blog, bài đăng <span class="hljs-type">LUÔN</span> <span class="hljs-type">LUÔN</span> <span class="hljs-built_in">c</span>ông khai
+
+  <span class="hljs-type">Chúc</span> <span class="hljs-built_in">c</span>á<span class="hljs-built_in">c</span> bạn xem blog vui vẻ!!
+</code></pre>]]></content:encoded></item></channel></rss>
