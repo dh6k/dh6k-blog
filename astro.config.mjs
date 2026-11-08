@@ -6,7 +6,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://dh6k-blog.vercel.app', // TODO: change when custom domain is decided
+	site: 'https://blog.dh6k.vip',
 	integrations: [mdx(), sitemap()],
 	fonts: [
 		{
