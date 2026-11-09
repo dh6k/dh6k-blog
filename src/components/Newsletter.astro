@@ -53,6 +53,13 @@ const username = import.meta.env.PUBLIC_BUTTONDOWN_USERNAME || 'dh6k';
 			flex-direction: column;
 			align-items: stretch;
 		}
+		/* flex-basis 16rem ở .newsletter input áp vào CHIỀU CAO khi form
+		   chuyển sang column, làm ô input cao 16rem+ và phình thành oval
+		   khổng lồ (cộng với border-radius pill). Reset lại ở mobile. */
+		.newsletter input {
+			flex: 0 0 auto;
+			width: 100%;
+		}
 		.newsletter .button {
 			justify-content: center;
 		}
