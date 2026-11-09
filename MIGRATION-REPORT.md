@@ -49,6 +49,14 @@ Date: 2026-11-09 02:21 +07. Source: `https://hn.dh6k.vip` (publication `61ed6370
 - **Live: https://blog.dh6k.vip/** — verified 03:03: homepage HTTP 200, title "dh6k's blog", Odysseus post linked; post page HTTP 200. `hn.dh6k.vip` still points to Hashnode (untouched, no redirect set up).
 - `astro.config.mjs` site now `https://blog.dh6k.vip`.
 
+## Theme — synced with dh6k.vip / gh.dh6k.vip, DONE 2026-11-09 09:24
+- Restyle commit `ff07b6d` (19 files), deploy `dpl_9wdazvK2yBodYHsYEKeN36AndZuP` READY, verified live 09:24.
+- Design tokens shared with both sites: dark bg `#0b0b0f`, surface `#111117`, ink `#f4f1f5`, muted `#aaa5af`, accent pink `#ff3d91`, line `#2b2832`; pink radial glow + dot grid background (from dh6k.vip panels / gh radial glow).
+- Fonts self-hosted, downloaded from dh6k.vip `/assets/fonts/` into `src/assets/fonts/`, registered via `fontProviders.local()` in `astro.config.mjs`: Major Mono Display (brand + hero, lowercase), Beth Ellen (handwritten accents), Lexend (display/headings), Maven Pro (headings), Asap (body + italic). Atkinson removed (woff files deleted). Fonts emitted to `dist/_astro/fonts/*.woff2`, verified HTTP 200 live.
+- Header (gh style): brand `dh6k's blog` in Major Mono (pink `'s blog`), nav mono uppercase with accent underline on active page; Astro/Mastodon/Twitter links removed, GitHub link added. Footer: © dh6k + links GitHub / dh6k.vip / gh.dh6k.vip / RSS.
+- Homepage: hero (eyebrow `blog.dh6k.vip`, mono title, SITE_DESCRIPTION lede) + featured latest post with cover + remaining posts as gh-style row list (title + mono date). `/blog` same row list. Post page: article nav (← all posts + date), eyebrow, Lexend title, description, tag pills, hero image, prose `#cbc7ce`; Newsletter restyled as surface card with pill input + pink handwritten button; Giscus theme `transparent_dark`.
+- `src/pages/about.astro` still has template lorem ipsum content — style is synced (renders through BlogPost layout) but the text itself was not rewritten.
+
 ## How to run locally
 ```bash
 cd ~/workspace/hashnode-astro-export
