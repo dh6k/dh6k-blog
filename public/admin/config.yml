@@ -18,6 +18,11 @@ backend:
   branch: main
   # Repo public nên chỉ cần scope hẹp này, không cần scope repo đầy đủ.
   auth_scope: public_repo
+  # Sign-in bằng GitHub (OAuth) qua Worker sveltia-cms-auth. Chỉ có tác
+  # dụng khi Worker đã có GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET và
+  # ALLOWED_DOMAINS=blog.dh6k.vip. Chưa set xong thì đăng nhập bằng token
+  # vẫn dùng được (nút mũi tên cạnh Sign In).
+  base_url: https://sveltia-cms-auth.1b1a6.workers.dev
 
 # Bài mới commit thẳng lên main, Vercel tự deploy lại. Không dùng
 # editorial_workflow (tạo PR từng bài) vì chỉ có một người viết.
