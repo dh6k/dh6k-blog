@@ -38,6 +38,10 @@ logo:
   src: /admin-logo.svg
   show_in_header: true
 
+# Tên hiển thị của admin thay cho "Sveltia CMS": tiêu đề trang đăng
+# nhập, câu chào mừng, tiêu đề tab trình duyệt, và tên trong manifest.
+app_title: dh6k blog manager
+
 # Sveltia bắt buộc phải có media_folder ở cấp global — chỉ khai ở cấp
 # collection thì nó vẫn báo "The media folder is not defined". Giá trị
 # global là đường dẫn từ gốc repo; public_folder ở cấp global phải là
