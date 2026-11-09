@@ -31,6 +31,13 @@ publish_mode: simple
 site_url: https://blog.dh6k.vip
 display_url: https://blog.dh6k.vip
 
+# Nhận diện riêng của dh6k: logo này hiện trên header admin, thành
+# favicon của tab trình duyệt, và logo nhỏ trên trang đăng nhập.
+# (logo_url cũ đã deprecated, dùng logo.src.)
+logo:
+  src: /admin-logo.svg
+  show_in_header: true
+
 # Sveltia bắt buộc phải có media_folder ở cấp global — chỉ khai ở cấp
 # collection thì nó vẫn báo "The media folder is not defined". Giá trị
 # global là đường dẫn từ gốc repo; public_folder ở cấp global phải là
