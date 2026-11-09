@@ -1,23 +1,24 @@
 /*
   dh6k's blog — shared identity with dh6k.vip and gh.dh6k.vip.
-  Black/pink duotone, dark surfaces, Major Mono Display wordmark,
+  Duyako guidelines 1.0.3 palette: indigo darks, lavender text,
+  soft pink + cyan accents. Major Mono Display wordmark,
   Beth Ellen handwritten accents, Lexend display, Maven Pro headings,
   Asap body. All fonts self-hosted (see astro.config.mjs).
 */
 
 :root {
 	color-scheme: dark;
-	--bg: #0b0b0f;
-	--ink-dark: #07070a;
-	--surface: #111117;
-	--surface-raised: #15151d;
-	--ink: #f4f1f5;
-	--muted: #aaa5af;
-	--prose: #cbc7ce;
-	--accent: #ff3d91;
-	--accent-deep: #f45d9e;
-	--paper: #fff7fb;
-	--line: #2b2832;
+	--bg: #17173e;
+	--ink-dark: #17173e;
+	--surface: #22224f;
+	--surface-raised: #2a2957;
+	--ink: #f1f3fa;
+	--muted: #918dc5;
+	--prose: #aeb5e2;
+	--accent: #f28fc7;
+	--accent-deep: #685c9d;
+	--paper: #f1f3fa;
+	--line: #353267;
 	--shell: 70rem;
 	--reading: 47.5rem;
 	--gutter: clamp(1rem, 3vw, 1.5rem);
@@ -46,7 +47,7 @@ body {
 	line-height: 1.7;
 	color: var(--ink);
 	background:
-		radial-gradient(circle at 82% 0, #241324 0, transparent 31rem),
+		radial-gradient(circle at 82% 0, #353267 0, transparent 31rem),
 		radial-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1.4px),
 		var(--bg);
 	background-size: auto, 1.65rem 1.65rem, auto;
@@ -322,7 +323,7 @@ main {
 	border: 1px solid var(--accent);
 	border-radius: var(--radius-pill);
 	background: var(--accent);
-	color: #160b11;
+	color: #17173e;
 	font-family: var(--font-hand);
 	font-size: 1.05rem;
 	line-height: 1;
@@ -336,7 +337,7 @@ main {
 
 .button:hover {
 	transform: translateY(-2px);
-	box-shadow: 0 0.7rem 1.8rem rgb(120 0 50 / 0.32);
+	box-shadow: 0 0.7rem 1.8rem rgb(104 92 157 / 0.32);
 }
 
 @media (max-width: 720px) {
