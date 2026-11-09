@@ -1,9 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 128 128">
-    <path d="M50.4 78.5a75.1 75.1 0 0 0-28.5 6.9l24.2-65.7c.7-2 1.9-3.2 3.4-3.2h29c1.5 0 2.7 1.2 3.4 3.2l24.2 65.7s-11.6-7-28.5-7L67 45.5c-.4-1.7-1.6-2.8-2.9-2.8-1.3 0-2.5 1.1-2.9 2.7L50.4 78.5Zm-1.1 28.2Zm-4.2-20.2c-2 6.6-.6 15.8 4.2 20.2a17.5 17.5 0 0 1 .2-.7 5.5 5.5 0 0 1 5.7-4.5c2.8.1 4.3 1.5 4.7 4.7.2 1.1.2 2.3.2 3.5v.4c0 2.7.7 5.2 2.2 7.4a13 13 0 0 0 5.7 4.9v-.3l-.2-.3c-1.8-5.6-.5-9.5 4.4-12.8l1.5-1a73 73 0 0 0 3.2-2.2 16 16 0 0 0 6.8-11.4c.3-2 .1-4-.6-6l-.8.6-1.6 1a37 37 0 0 1-22.4 2.7c-5-.7-9.7-2-13.2-6.2Z" />
-    <style>
-        path { fill: #000; }
-        @media (prefers-color-scheme: dark) {
-            path { fill: #FFF; }
-        }
-    </style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">dh6k favicon</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#11142d"/>
+      <stop offset="1" stop-color="#050711"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff4fa3"/>
+      <stop offset=".52" stop-color="#a98cff"/>
+      <stop offset="1" stop-color="#43d9ff"/>
+    </linearGradient>
+    <linearGradient id="six" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff79bd"/>
+      <stop offset="1" stop-color="#a878ff"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="27" fill="url(#bg)" stroke="url(#accent)" stroke-width="3"/>
+  <path d="M19 78 C8 55 24 26 55 20 C82 15 111 34 111 58" fill="none" stroke="#36cfff" stroke-width="3.5" stroke-linecap="round" opacity=".9"/>
+  <path d="M14 91 C34 112 82 113 111 88" fill="none" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" filter="url(#glow)"/>
+  <!-- tiny cat-ear silhouette -->
+  <path d="M42 48 L45 34 L57 43 Q64 40 71 43 L83 33 L86 49 Q94 58 90 69 Q85 82 64 82 Q43 82 38 68 Q35 57 42 48Z" fill="#24264c" stroke="#e9eaff" stroke-width="2.5"/>
+  <path d="M47 61 Q54 56 60 62 M69 62 Q76 56 82 61" fill="none" stroke="#b9b8ff" stroke-width="3" stroke-linecap="round"/>
+  <path d="M62 69 Q64 72 67 69" fill="none" stroke="#ff8fc7" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M51 24 Q64 13 78 24" fill="none" stroke="#8beaff" stroke-width="3" stroke-linecap="round"/>
+  <text x="64" y="101" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="900" font-style="italic" letter-spacing="-2.2" fill="#f7f8ff" stroke="#11142d" stroke-width="2.5" paint-order="stroke">dh<tspan fill="url(#six)">6</tspan>k</text>
+  <path d="M20 104 L28 104 M100 104 L108 104" stroke="#50dfff" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M104 19 l2.4 5.6 5.6 2.4-5.6 2.4-2.4 5.6-2.4-5.6-5.6-2.4 5.6-2.4Z" fill="#54dfff"/>
+  <circle cx="23" cy="27" r="2.5" fill="#ff6eb8"/>
 </svg>
