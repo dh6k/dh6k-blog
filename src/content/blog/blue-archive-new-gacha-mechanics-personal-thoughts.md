@@ -6,15 +6,7 @@ updatedDate: 2026-11-09
 heroImage: "../../assets/blog/blue-archive-new-gacha-mechanics-personal-thoughts-cover.jpg"
 tags: ["Gacha Games"]
 ---
-> **Cập nhật 09/11/2026.** Bản này sửa lại bài đăng ngày 26/07/2026 theo 11 slide thuyết trình tiếng Hàn về cải tổ hệ thống chiêu mộ (server Global từ 10/11/2026), đối chiếu qua space [Blue Archive - Hệ Gacha Mới](https://muse.ai/s/blue-archive-he-gacha-moi-xqxb6z3xhoxrr62/OgIhNFlZmOPnJJn_FZusbqR2A0_FRLLQ2KTqjYpQhYI).
-
-## Những chỗ bản cũ viết chưa chuẩn, sửa ở bản này
-
-1. **Ngày áp dụng.** Bản cũ ghi "từ ngày 29/07/2026" — đó là mốc của server Nhật. Bản này lấy mốc **Global 10/11/2026** làm chuẩn.
-2. **Tên gọi.** Bản cũ dùng "Recruitment Charge" và "Recruitment Count Rewards". Tên đúng theo slide và thông báo là **Recruitment Stack** (Stack) và **Recruitment Mileage Rewards** (Mileage).
-3. **Giá của hard pity.** Bản cũ tính "24.000 Pyroxene = 200 lượt đá mới chạm bảo đảm". Tính đúng: chạm mốc tích lũy 200 chỉ tốn **160 lần đá (19.200 Pyroxene) + 40 lần vé** nhận trên đường đi. 24.000 đá là ngân sách tối đa cho 200 lần đá, không phải giá của một lần bảo đảm.
-4. **Luật reset.** Bản cũ chỉ nói "trúng pickup thì reset". Bổ sung: **ra 3★ không phải pickup thì stack không reset** — kể cả 3★ nhận ở mốc 100 khi rơi vào 50% còn lại, stack vẫn chạy tiếp tới mốc 200.
-5. **Kết luận về săn 2 pickup.** Bản cũ kết luận cơ chế mới tệ hơn khi săn nhiều mục tiêu. Tính lại theo slide P.08–P.10: **so bằng lượng đá thì hệ mới nhỉnh hơn** (75,5% → 76,8% ở mốc 200 lần đá). Hệ mới chỉ "thua" khi so bằng tổng lượt quay tại đúng mốc 200 (64,1% so với 75,5%) — mà hai con số đó không cùng lượng đá. Cái hệ mới mất thật là **quyền chọn chắc chắn ở mốc 200**, không phải xác suất.
+> **Cập nhật 09/11/2026.** Bài đăng ngày 26/07, viết lại theo 11 slide thuyết trình tiếng Hàn về cải tổ hệ thống chiêu mộ (server Global từ 10/11/2026), đối chiếu qua space [Blue Archive - Hệ Gacha Mới](https://muse.ai/s/blue-archive-he-gacha-moi-xqxb6z3xhoxrr62/OgIhNFlZmOPnJJn_FZusbqR2A0_FRLLQ2KTqjYpQhYI). Những chỗ sửa chính: mốc áp dụng Global thay vì mốc Nhật, tên gọi Stack/Mileage, giá thật của một lần bảo đảm, luật reset khi ra 3★ lệch, và kết luận về săn 2 pickup tính lại theo lượng đá.
 
 Ý tưởng: tôi
 
@@ -38,7 +30,7 @@ Nhưng thay đổi quan trọng nhất lại nằm ở một dòng khác:
 
 > Khi nhận được pickup, Stack đã tích đến đúng vị trí nhân vật xuất hiện sẽ reset về 0.
 
-Đây là điểm khiến cơ chế mới trở nên dễ chịu hơn khi săn **một mục tiêu**, nhưng kém ổn định hơn rõ rệt khi săn **hai hoặc ba nhân vật trong cùng một đợt** — nếu chỉ xét quyền lựa chọn chắc chắn, không xét xác suất.
+Đây là điểm khiến cơ chế mới dễ chịu hơn khi săn một mục tiêu, và khó lường hơn khi săn hai hoặc ba nhân vật trong cùng một đợt.
 
 ---
 
@@ -59,17 +51,18 @@ Stack quyết định mốc pity:
 
 ### Hai Stack riêng: thường và đặc biệt / FES
 
-Đây là điểm bản cũ viết chưa đủ rõ. Không phải một Stack chung cho mọi banner:
+Không có một Stack chung cho mọi banner. Stack chia hai loại, và hai loại không cộng chéo:
 
 - **Stack thường**: banner pickup thường, kể cả rerun. Hai banner thường A (20 lần) và B (30 lần) mở cùng kỳ thì cộng chung thành 50.
 - **Stack đặc biệt / FES**: banner pickup đặc biệt và FES, kể cả rerun. Banner C (40 lần) và D (50 lần) cộng chung thành 90.
-- Hai Stack **không cộng chéo**. Quay 50 lần banner thường không làm Stack FES nhích lên dù chỉ 1 lần.
+- Quay 50 lần banner thường không làm Stack FES nhích lên dù chỉ 1 lần.
 - Trong mỗi loại, các banner mở cùng thời gian đổ số lần quay vào chung một Stack. Ra pickup ở banner nào thì Stack của loại đó reset.
 
 ### Stack mang sang banner sau
 
-- Chưa ra pickup thì Stack giữ nguyên và nối tiếp sang banner cùng loại ở kỳ sau. Ví dụ: quay 40 lần mỗi event, 3 event cùng loại, không ra pickup — Stack đi 0 → 40 → 80 → 120, chạm mốc 100 ngay ở lần quay thứ 20 của event thứ ba.
-- Những lượt quay "lỡ cỡ, không ra gì" ở banner trước không còn mất trắng. Đây là khác biệt thực tế lớn nhất so với hệ cũ, nơi điểm hết banner là hết giá trị.
+Chưa ra pickup thì Stack giữ nguyên và nối tiếp sang banner cùng loại ở kỳ sau. Ví dụ: quay 40 lần mỗi event, 3 event cùng loại, không ra pickup — Stack đi 0 → 40 → 80 → 120, chạm mốc 100 ngay ở lần quay thứ 20 của event thứ ba.
+
+Những lượt quay "lỡ cỡ, không ra gì" ở banner trước không mất trắng nữa. Đây là khác biệt thực tế lớn nhất so với hệ cũ, nơi điểm hết banner là hết giá trị.
 
 ### Recruitment Mileage Rewards
 
@@ -112,19 +105,13 @@ Bảng thưởng đầy đủ, 20 mốc đầu tiên:
 | 370 | **Vé chiêu mộ ×10 (có thời hạn)** |
 | 390 | Hộp chọn Sổ Kỹ thuật Tối thượng ×5 |
 
-Như vậy:
+Trước mốc 200, người chơi nhận 4 vé 10 lượt, tương đương 40 lượt quay. Trước mốc 390 là 8 vé, tương đương 80 lượt — mức tối đa một kỳ. Sau mốc 390, thưởng chuyển sang dạng lặp, cứ mỗi 20 lần lại có thưởng, nhưng không còn vé 10 lượt.
 
-- Trước mốc 200, người chơi nhận **4 vé 10 lượt**, tương đương 40 lượt quay.
-- Trước mốc 390, người chơi nhận tổng cộng **8 vé 10 lượt**, tương đương 80 lượt quay. Đây là mức tối đa một kỳ.
-- Sau mốc 390, hệ thống chuyển sang phần thưởng lặp từ 410 đến 590, cứ mỗi 20 lần quay lại có thưởng — nhưng **không có thêm vé 10 lượt**.
-
-Vé là loại có thời hạn. Khi quay tiếp nối, vé được tự động dùng trước Pyroxene.
-
-Vì thế, đây không phải máy in vé vô hạn. Tám vé đầu là khoản hoàn trả một lần trong mỗi kỳ pickup; sang kỳ mới, dãy phần thưởng đầu lại reset và bắt đầu từ mốc 10.
+Vé có thời hạn, và khi quay tiếp nối, vé được tự động dùng trước Pyroxene. Tám vé đầu vì thế là khoản hoàn trả một lần trong mỗi kỳ pickup; sang kỳ mới, dãy thưởng đầu lại reset từ mốc 10. Đây không phải máy in vé vô hạn.
 
 ### Giá thật của một lần bảo đảm
 
-Bắt đầu từ Stack 0, Mileage 0, quay liên tục trong một kỳ tới mốc bảo hiểm 200: trên đường đi đã nhận 4 vé ở các mốc 70, 130, 150, 170 — tức 40 lần quay bằng vé.
+Bắt đầu từ Stack 0, Mileage 0, quay liên tục trong một kỳ tới mốc bảo hiểm 200: trên đường đi đã nhận 4 vé ở các mốc 70, 130, 150, 170, tức 40 lần quay bằng vé.
 
 ```
 Tổng vẫn là 200 lần để chắc chắn có pickup
@@ -132,7 +119,7 @@ Phần phải trả bằng đá chỉ còn 160 lần
 160 × 120 = 19.200 Pyroxene, thay vì 24.000
 ```
 
-Xét theo chuẩn hệ "trần" cũ, trần thực tế đã hạ xuống — đây là điểm bản cũ tính sai: bản cũ lấy 24.000 đá làm giá của bảo đảm, trong khi 24.000 đá là ngân sách cho 200 lần đá, tương ứng tổng 240 lượt quay trong kỳ.
+Trần của một lần bảo đảm vì thế đã hạ từ 24.000 xuống 19.200 đá — 24.000 chỉ còn là ngân sách tối đa cho 200 lần đá, tương ứng tổng 240 lượt quay trong kỳ.
 
 ---
 
@@ -146,9 +133,7 @@ Mỗi lần quay, xác suất không ra pickup là 100% − 0,7% = 99,3%, tức 
 
 Đó là xác suất quay 200 lần vẫn trắng tay ở hệ cũ — cứ 4 người thì khoảng 1 người rơi vào trường hợp này. Chính vì có tới khoảng 24,5% người chơi quay đủ 200 lần vẫn hụt, hệ cũ mới cần spark: đủ 200 điểm thì đổi thẳng học sinh, đảm bảo không ai trắng tay hoàn toàn.
 
-Định hướng của đợt cải tổ là thu nhỏ vùng "quay mãi không ra" này bằng hai cơ chế: mốc bảo hiểm Stack 100/200 và vé Mileage.
-
-Lưu ý: đường cong xác suất tích lũy thuần túy ở tỉ lệ 0,7%/lần chưa tính luật bảo hiểm của Stack và hiệu ứng vé Mileage.
+Định hướng của đợt cải tổ là thu nhỏ vùng "quay mãi không ra" này bằng hai cơ chế: mốc bảo hiểm Stack 100/200 và vé Mileage. Đường cong này chưa tính luật bảo hiểm của Stack và hiệu ứng vé Mileage — nó chỉ là xác suất tích lũy thuần túy ở tỉ lệ 0,7%/lần.
 
 ---
 
@@ -183,22 +168,22 @@ Nhắm cả hai học sinh pickup của một kỳ, mỗi banner một người:
 
 ### Theo tổng số lần quay (P.09) — slide dễ bị cắt khỏi ngữ cảnh nhất
 
-- Tổng 200 lần quay: cũ ≈ **75,5%**, mới ≈ **64,1%**.
-- Nhưng hai con số này **không cùng lượng đá**. 200 lần của hệ cũ là 200 lần đá; 200 lần của hệ mới chỉ gồm 160 lần đá + 40 lần vé. Chính slide gốc cũng ghi cảnh báo: "Lượng Pyroxene đã dùng của hai bên khác nhau".
-- Hiểu đúng thì đây không phải "hệ mới tệ hơn", mà là: nếu chỉ đếm số lượt quay và dừng đúng ở 200, spark cũ cho một cú nhảy rất đúng lúc, còn hệ mới thì mỗi người có một Stack — người thứ hai phải làm lại hành trình Stack của riêng mình. Đổi lại, phía hệ mới mới chỉ tốn 160 lần đá cho 200 lượt quay đó.
+Tổng 200 lần quay: cũ ≈ **75,5%**, mới ≈ **64,1%**. Nhưng hai con số này không cùng lượng đá: 200 lần của hệ cũ là 200 lần đá, còn 200 lần của hệ mới chỉ gồm 160 lần đá + 40 lần vé. Chính slide gốc cũng ghi cảnh báo: "Lượng Pyroxene đã dùng của hai bên khác nhau".
+
+Đếm theo lượt quay và dừng đúng ở 200, spark cũ cho một cú nhảy rất đúng lúc — đảm bảo luôn một người tại đúng mốc đó — còn hệ mới thì mỗi người có một Stack, người thứ hai phải làm lại hành trình của riêng mình. Đổi lại, phía hệ mới mới chỉ tốn 160 lần đá cho 200 lượt quay đó.
 
 ### Theo lượng đá tiêu (P.10) — phép so sánh công bằng
 
 - Cùng 200 lần đá: cũ ≈ **75,5%**, mới ≈ **76,8%** — 200 lần đá này cho tổng 240 lần quay (200 đá + 40 vé đã nhận và dùng trên đường).
 - Trần cứng cho đủ cặp: **đá 320 + vé 80**, tức lần tích lũy thứ 400 thì đủ cả hai.
 - Theo mô hình của slide, đường hệ mới bằng hoặc cao hơn hệ cũ trên toàn dải đá 1–400 lần.
-- Chênh lệch khi săn 2 người nhỏ hơn hẳn khi săn 1 người: chỉ +1,3 điểm % ở mốc 200 đá, so với +26,2 điểm % ở P.07 — vì Stack reset sau mỗi pickup, lợi thế mốc 100/200 phải "kiếm lại" cho từng người.
+- Chênh lệch khi săn 2 người nhỏ hơn hẳn khi săn 1 người — chỉ +1,3 điểm % ở mốc 200 đá, so với +26,2 điểm % ở P.07 — vì Stack reset sau mỗi pickup, lợi thế mốc 100/200 phải "kiếm lại" cho từng người.
 
 Điều kiện mô hình P.08–P.10: tỉ lệ pickup 0,7%/lần; ra học sinh đầu tiên thì chuyển ngay sang banner học sinh còn lại; không tính việc học sinh còn lại tự xuất hiện lệch banner; bắt đầu từ 0, không có vé hay lượt miễn phí có sẵn; vé nhận trong kỳ được dùng nối tiếp và tự động ưu tiên trước đá.
 
 ---
 
-## Bài toán Magical Girl Heavy Caliber, tính lại
+## Bài toán Magical Girl Heavy Caliber
 
 ![](../../assets/blog/blue-archive-new-gacha-mechanics-personal-thoughts-01.png)
 
@@ -217,45 +202,37 @@ Hai mức mục tiêu:
 
 Ở đây, "kỳ vọng" chỉ có nghĩa là mục tiêu mong muốn, không phải giá trị kỳ vọng theo thống kê.
 
-### Cơ chế cũ (giữ nguyên từ bản cũ — phần này tính đúng)
+### Cơ chế cũ
 
 Trong cơ chế cũ, mỗi lượt quay tạo ra 1 Recruitment Point. Đạt 200 điểm, người chơi có thể đổi trực tiếp một pickup đang diễn ra. Điểm mạnh nhất là:
 
 > Trúng pickup không làm mất số điểm đã tích.
 
-May mắn không chỉ đem đến một nhân vật. Nó còn làm mốc spark 200 trở nên mạnh hơn. Chỉ cần một trong hai nhân vật giới hạn xuất hiện tự nhiên trong 200 lượt, nhân vật còn lại đã có thể được khóa bằng spark — kể cả khi Suzumi xuất hiện ở lượt 190, quay thêm 10 lượt là đủ 200 điểm để đổi Reisa.
+May mắn không chỉ đem đến một nhân vật — nó còn làm mốc spark 200 mạnh hơn. Chỉ cần một trong hai nhân vật giới hạn xuất hiện tự nhiên trong 200 lượt, nhân vật còn lại đã có thể được khóa bằng spark. Suzumi xuất hiện ở lượt 190 cũng vậy: quay thêm 10 lượt là đủ 200 điểm để đổi Reisa.
 
-### Cơ chế mới: 40 lượt thêm không đồng nghĩa với một spark mới
+### Cơ chế mới
 
-Với cơ chế mới, 24.000 Pyroxene có thể tạo ra tối đa 240 lượt thực tế nhờ bốn vé 10 lượt. Nghe rất hấp dẫn. Nhưng 240 lượt quay và một quyền chọn ở mốc 200 là hai loại giá trị hoàn toàn khác nhau.
+Với cơ chế mới, 24.000 Pyroxene có thể tạo ra tối đa 240 lượt thực tế nhờ bốn vé 10 lượt. Nghe rất hấp dẫn — nhưng 240 lượt quay và một quyền chọn ở mốc 200 là hai loại giá trị hoàn toàn khác nhau.
 
-Gọi `x` là vị trí Suzumi xuất hiện. Ngay tại lượt `x`, Stack về 0. Nếu pickup xuất hiện trong một lượt quay 10, các ô phía sau tiếp tục cộng Stack mới; lượng Stack còn lại sau khi hoàn tất lượt quay 10 đó là `(10 - (x mod 10)) mod 10`. Ví dụ: Suzumi ở lượt 93 → còn 7 Stack; ở lượt 99 → còn 1; ở lượt 100 → còn 0.
+Gọi `x` là vị trí Suzumi xuất hiện. Ngay tại lượt `x`, Stack về 0. Nếu pickup xuất hiện trong một lượt quay 10, các ô phía sau tiếp tục cộng Stack mới; lượng Stack còn lại sau khi hoàn tất lượt quay 10 đó là `(10 - (x mod 10)) mod 10` — Suzumi ở lượt 93 thì còn 7 Stack, ở lượt 99 thì còn 1, ở lượt 100 thì còn 0.
 
-Dù còn vài Stack lẻ, mốc pity tiếp theo vẫn được tính từ đúng vị trí pickup:
+Dù còn vài Stack lẻ, mốc pity tiếp theo vẫn tính từ đúng vị trí pickup:
 
 ```
 Mốc 50/50 tiếp theo = x + 100
 Mốc bảo đảm tiếp theo = x + 200
 ```
 
-Với tổng ngân sách mới là 240 lượt:
+Với tổng ngân sách 240 lượt trong kỳ:
 
 ```
 Có thể chạm 50/50 cho nhân vật thứ hai nếu x ≤ 140
 Có thể bảo đảm nhân vật thứ hai nếu x ≤ 40
 ```
 
-Đây là hai ngưỡng quan trọng nhất của bài toán — và chúng vẫn đúng trong phạm vi một kỳ, với ngân sách 200 lần đá. Nhưng bản cũ dừng ở đây, bỏ sót ba điều:
+Hai ngưỡng này đúng — nhưng chỉ trong phạm vi một kỳ, với ngân sách 200 lần đá. Và chúng chưa kể hết câu chuyện. Thứ nhất, pickup đầu tiên được bảo đảm ở lần tích lũy 200, tốn 160 lần đá chứ không phải 200, nên ngưỡng `x ≤ 40` nói về vị trí tích lũy, không phải số đá đã đốt. Thứ hai, trượt mốc trong kỳ này không xóa tiến độ: Stack tích lại cho Reisa sau khi reset được mang sang banner cùng loại ở kỳ sau, trong khi điểm spark cũ hết banner là hết giá trị. Thứ ba — và quan trọng nhất — xác suất ở cùng lượng đá thì hệ mới không thua: như P.10 đã tính, cùng 200 lần đá, đủ cả hai pickup là 76,8% so với 75,5% của hệ cũ. Cái hệ mới mất là quyền chọn chắc chắn, không phải xác suất.
 
-1. **Bảo đảm đầu tiên rẻ hơn bản cũ tính.** Pickup đầu tiên được bảo đảm ở lần tích lũy 200, tốn 160 lần đá chứ không phải 200. Ngưỡng `x ≤ 40` nói về vị trí tích lũy, không phải số đá đã đốt.
-2. **Trượt mốc trong kỳ này không xóa tiến độ.** Sau khi Stack reset vì đã ra Suzumi, số Stack tích lại cho Reisa được mang sang banner cùng loại ở kỳ sau. Trong hệ cũ, điểm spark hết banner là hết giá trị. "Không đạt kỳ vọng 2 trong kỳ này" không còn đồng nghĩa với "mất trắng tiến độ".
-3. **Xác suất ở cùng lượng đá thì hệ mới không thua.** Như P.10 đã tính: cùng 200 lần đá, đủ cả hai pickup là 76,8% so với 75,5% của hệ cũ. Cái hệ mới mất là quyền chọn chắc chắn, không phải xác suất.
-
-Vì vậy, những khẳng định tuyệt đối ở bản cũ cần sửa lại:
-
-- "Không đạt được kỳ vọng nào" nên đổi thành "không còn con đường bảo hiểm để đạt kỳ vọng trong kỳ này".
-- "Kỳ vọng 1 bị loại bỏ" nên đổi thành "kỳ vọng 1 không còn khả năng được chủ động bảo đảm".
-- "24.000 Pyroxene chỉ có 200 lượt" phải đổi thành "200 lượt bằng đá, tối đa 240 lượt thực tế sau bốn vé thưởng — và mốc bảo đảm đầu tiên chỉ tốn 160 lần đá".
+Nói gọn lại: "không đạt kỳ vọng nào" nên hiểu là "không còn con đường bảo hiểm để đạt kỳ vọng trong kỳ này"; "kỳ vọng 1 bị loại bỏ" nên hiểu là "kỳ vọng 1 không còn khả năng được chủ động bảo đảm". Còn "24.000 Pyroxene chỉ có 200 lượt" thì phải đọc là "200 lượt bằng đá, tối đa 240 lượt thực tế sau bốn vé thưởng".
 
 ---
 
@@ -270,18 +247,17 @@ Slide cuối quy mọi thứ về một đơn vị dễ so nhất: số lần qu
 | Quay trùng cùng một học sinh, ngân sách 400 lần đá (giá cho mỗi bản sao kỳ vọng) | ≈ 83 lần | ≈ 79 lần | −4,8% đá |
 | Quay trùng cùng một học sinh, ngân sách 1000 lần đá (giá cho mỗi bản sao kỳ vọng) | ≈ 83 lần | ≈ 85 lần | **+2,5% đá** |
 
-Lưu ý về cách đọc bảng: hai hàng trên là giá trị kỳ vọng của số đá cần để có lần nhận đầu tiên (quay đến khi ra pickup thì dừng). Hai hàng dưới lấy ngân sách đá cố định (400 / 1000 lần) chia cho số học sinh kỳ vọng nhận được khi quay trùng lặp cùng một học sinh trong một kỳ. Số lần trung bình được làm tròn lên thành số nguyên khi hiển thị, còn phần trăm tăng/giảm được tính từ giá trị chưa làm tròn — nên đừng tự lấy 90/143 ra −36,9% khít tuyệt đối.
+Lợi nhất: người quay chia nhỏ, mỗi đợt dưới 70 lần (−36,9%) — nhóm bị hệ cũ "xé lẻ" tiến độ nặng nhất: điểm hết banner là hết giá trị, còn Stack thì nhớ hết và mang sang. Lợi rõ rệt: người gom 200 quay một mạch (−26,7%), khớp con số 108 → 79 lần đá ở P.07. Lợi ít dần khi quay trùng lặp nặng: ở ngân sách 400 lần đá chỉ còn −4,8%, vì sau mỗi lần ra pickup, Stack reset và phải leo lại từ đầu, vé bị khóa trần 80 lần/kỳ, thưởng lặp sau mốc 390 không có vé.
 
-- Lợi nhất: người quay chia nhỏ, mỗi đợt dưới 70 lần (−36,9%). Đây là nhóm bị hệ cũ "xé lẻ" tiến độ nặng nhất: điểm hết banner là hết giá trị, còn Stack thì nhớ hết và mang sang.
-- Lợi rõ rệt: người gom 200 quay một mạch (−26,7%) — khớp với con số trung bình 108 → 79 lần đá ở P.07.
-- Lợi ít dần khi quay trùng lặp nặng: ở ngân sách 400 lần đá chỉ còn −4,8%, vì sau mỗi lần ra pickup, Stack reset và phải leo lại từ đầu; vé cũng bị khóa trần 80 lần/kỳ và phần thưởng lặp sau mốc 390 không có vé.
-- **Ngoại lệ duy nhất**: ngân sách 1000 lần đá để quay trùng, +2,5%. Đây là trường hợp duy nhất trong cả bộ slide mà hệ mới tốn đá hơn hệ cũ theo giá trị tính toán: người "đập đá" cực sâu vào một học sinh gần như luôn chạm trần bảo hiểm ở cả hai hệ, lợi thế vé bị pha loãng trên 1000 lần, còn spark cũ đổi điểm đều tay theo từng 200 điểm lại nhỉnh hơn một chút.
+Ngoại lệ duy nhất: ngân sách 1000 lần đá để quay trùng, +2,5%. Đây là trường hợp duy nhất trong cả bộ slide mà hệ mới tốn đá hơn hệ cũ theo giá trị tính toán — người "đập đá" cực sâu vào một học sinh gần như luôn chạm trần bảo hiểm ở cả hai hệ, lợi thế vé bị pha loãng trên 1000 lần, còn spark cũ đổi điểm đều tay theo từng 200 điểm lại nhỉnh hơn một chút.
+
+Lưu ý về cách đọc bảng: hai hàng trên là giá trị kỳ vọng của số đá cần để có lần nhận đầu tiên (quay đến khi ra pickup thì dừng); hai hàng dưới lấy ngân sách đá cố định (400 / 1000 lần) chia cho số học sinh kỳ vọng nhận được khi quay trùng lặp cùng một học sinh trong một kỳ. Số lần trung bình được làm tròn lên thành số nguyên khi hiển thị, còn phần trăm tăng/giảm được tính từ giá trị chưa làm tròn — nên đừng tự lấy 90/143 ra −36,9% khít tuyệt đối.
 
 Giới hạn của bảng: các con số này chưa tính lượng tài nguyên Eleph / Eligma nhận được — đó là một khoản khác, không nằm trong phép tính "đá cho một học sinh".
 
 ---
 
-## So sánh trực tiếp hai cơ chế (cập nhật)
+## So sánh trực tiếp hai cơ chế
 
 | Tiêu chí | Cơ chế cũ | Cơ chế mới |
 | --- | --- | --- |
@@ -360,7 +336,7 @@ Với họ, vấn đề không phải thiếu nhân vật tuyệt đối, mà l�
 1. **"Quay banner thường có giúp pity banner FES không?"** — Không. Stack thường và Stack đặc biệt / FES là hai bộ đếm tách biệt. 50 lần quay banner thường không làm Stack FES nhích lên dù chỉ 1 lần.
 2. **"Ra 3★ không phải pickup thì Stack có về 0 không?"** — Không. Chỉ khi ra đúng học sinh pickup Stack mới reset. Kể cả 3★ nhận ở mốc bảo hiểm 100 — nếu đó là 3★ lệch (trúng 50% còn lại), Stack vẫn tiếp tục chạy tới mốc 200.
 3. **"Hết banner thì những lần quay dở dang có mất không?"** — Với Stack: không mất, mang sang banner cùng loại tiếp theo. Với Mileage: có, Mileage về 0 khi hết kỳ. Đây là khác biệt cốt lõi giữa hai hệ.
-4. **"Thấy ảnh chụp con số 64,1% < 75,5% — vậy hệ mới tệ hơn khi săn 2 pickup?"** — Không, đó là phép so ở P.09: cùng tổng số lượt quay 200, nhưng hệ cũ đốt đủ 200 lần đá còn hệ mới chỉ đốt 160 lần đá + 40 vé. Khi so bằng cùng lượng đá 200 lần (P.10), hệ mới nhỉnh hơn: ≈ 76,8% so với ≈ 75,5%.
+4. **"Thấy ảnh chụp con số 64,1% < 75,5% — vậy hệ mới tệ hơn khi săn 2 pickup?"** — Không. Đó là phép so ở P.09: cùng tổng số lượt quay 200, nhưng hệ cũ đốt đủ 200 lần đá còn hệ mới chỉ đốt 160 lần đá + 40 vé. So bằng cùng lượng đá 200 lần (P.10), hệ mới nhỉnh hơn: ≈ 76,8% so với ≈ 75,5%.
 5. **"75,1% ở P.06 và 76,7% ở P.07 — số nào mới đúng?"** — Cả hai, vì khác thước đo: P.06 cố định tổng lượt quay = 100 (đá 90 lần + vé 10), P.07 cố định lượng đá = 100 lần (tổng lượt quay thành 110 nhờ vé). Đọc phần trăm nào cũng phải đọc kèm trục ngang của nó.
 6. **"Có kiểu người chơi nào bị thiệt vì hệ mới không?"** — Có đúng một kiểu theo P.11: quay trùng lặp cùng một học sinh với ngân sách rất lớn (~1000 lần đá/kỳ) tốn hơn ≈ 2,5% đá cho mỗi học sinh kỳ vọng. Mọi kiểu còn lại — nhất là người quay chia nhỏ từng đợt dưới 70 lần — đều tốn ít đá hơn, tới −36,9%.
 7. **"Điểm spark cũ của tôi thì sao?"** — Hệ đổi điểm bị bãi bỏ. Theo thông báo chính thức ngày 08/10 về đợt cải tổ 10/11, Recruitment Point tích ở các banner cũ được chuyển thành Keystone Pieces, không mang sang hệ Stack mới — mọi người đều bắt đầu Stack từ 0.
@@ -369,45 +345,17 @@ Với họ, vấn đề không phải thiếu nhân vật tuyệt đối, mà l�
 
 ## Kết luận: cơ chế nào tốt hơn?
 
-Câu trả lời chính xác nhất không phải "cũ tốt hơn tuyệt đối" hay "mới hào phóng hơn tuyệt đối".
-
-Hai cơ chế tối ưu cho hai kiểu hành vi khác nhau.
+Câu trả lời chính xác nhất không phải "cũ tốt hơn tuyệt đối" hay "mới hào phóng hơn tuyệt đối". Hai cơ chế tối ưu cho hai kiểu hành vi khác nhau.
 
 ### Nếu chỉ săn đúng một pickup
 
-**Cơ chế mới tốt hơn.**
-
-Người chơi nhận được:
-
-- một mốc 50/50 ở lượt 100;
-- hard pity ở 200 Stack, thực chi chỉ 160 lần đá;
-- Stack có khả năng được giữ lại theo nhóm banner;
-- bốn vé 10 lượt trước mốc 200;
-- thêm nguyên liệu và phần thưởng theo số lần quay.
-
-Với một mục tiêu duy nhất, hệ thống mới giảm khả năng phải đi toàn bộ 200 lượt mà không có điểm dừng đáng kể. Xác suất ở mốc 100 lần đá tăng từ ≈ 50,5% lên ≈ 76,7%.
+**Cơ chế mới tốt hơn.** Một mốc 50/50 ở lượt 100, hard pity ở 200 Stack mà thực chi chỉ 160 lần đá, Stack giữ lại được theo nhóm banner, bốn vé 10 lượt trước mốc 200, thêm nguyên liệu và phần thưởng theo số lần quay. Với một mục tiêu duy nhất, hệ thống mới giảm hẳn khả năng phải đi toàn bộ 200 lượt mà không có điểm dừng đáng kể — xác suất ở mốc 100 lần đá tăng từ ≈ 50,5% lên ≈ 76,7%.
 
 ### Nếu muốn lấy hai hoặc ba pickup trong cùng một đợt
 
-**Cơ chế cũ tốt hơn rõ rệt về quyền chọn chắc chắn — nhưng không tốt hơn về xác suất ở cùng lượng đá.**
+**Cơ chế cũ tốt hơn rõ rệt về quyền chọn chắc chắn — nhưng không tốt hơn về xác suất ở cùng lượng đá.** Hệ cũ biến một pickup tự xuất hiện thành pickup thứ hai bằng spark, biến hai lần trúng tự nhiên thành đủ ba người, và giữ nguyên toàn bộ giá trị của một pickup đến muộn ở lượt 190. Hệ mới cho nhiều lượt quay hơn và xác suất đủ cả hai ở cùng 200 lần đá nhỉnh hơn (76,8% so với 75,5%) — nhưng mỗi pickup reset Stack, nhân vật đầu phải xuất hiện trong 40 lượt đầu mới còn đủ ngân sách bảo đảm nhân vật thứ hai trong cùng kỳ, từ lượt 41 đến 140 nhân vật thứ hai chỉ còn một mốc 50/50, sau lượt 140 thì không còn pity trong tổng 240 lượt của kỳ đó, và nhân vật thứ ba gần như hoàn toàn phụ thuộc vào nhiều lần tự xuất hiện.
 
-Trong hệ thống cũ:
-
-- một pickup tự xuất hiện → spark lấy pickup thứ hai;
-- hai nhân vật tự xuất hiện → spark lấy nhân vật thứ ba;
-- pickup xuất hiện ở lượt 190 vẫn giữ nguyên toàn bộ giá trị;
-- người chơi quyết định ai được nhận ở mốc 200.
-
-Trong hệ thống mới:
-
-- người chơi có nhiều lượt quay hơn, và xác suất đủ cả hai ở cùng 200 lần đá nhỉnh hơn (76,8% so với 75,5%);
-- nhưng mỗi pickup reset Stack;
-- nhân vật đầu phải xuất hiện trong 40 lượt đầu mới còn đủ ngân sách bảo đảm nhân vật thứ hai trong cùng kỳ;
-- từ lượt 41 đến 140, nhân vật thứ hai chỉ còn một mốc 50/50;
-- sau lượt 140, nhân vật thứ hai không còn pity trong tổng 240 lượt của kỳ đó — dù Stack tích lại được mang sang kỳ sau;
-- nhân vật thứ ba gần như hoàn toàn phụ thuộc vào nhiều lần tự xuất hiện.
-
-Vì vậy, kết luận chính xác nhất — sửa lại so với bản cũ — là:
+Vì vậy:
 
 > **Cơ chế mới là một hệ thống pity tốt hơn, và là một hệ thống xác suất tốt hơn ở cùng lượng đá — nhưng là một công cụ lập kế hoạch chắc chắn tệ hơn.**
 >
@@ -421,19 +369,9 @@ Vì vậy, kết luận chính xác nhất — sửa lại so với bản cũ �
 
 ![](../../assets/blog/blue-archive-new-gacha-mechanics-personal-thoughts-06.png)
 
-Với trường hợp Magical Suzumi, Magical Reisa và giả định có thêm Magical Shimiko:
+Bốn vé 10 lượt làm cơ chế mới bớt khắc nghiệt hơn phép tính 200 lượt ban đầu: chúng nâng tổng số lượt tiềm năng từ 200 lên 240 với ngân sách 200 lần đá, cho thêm cơ hội tự nhiên và mở rộng vùng có thể chạm pity thứ hai. Nhưng chúng không khôi phục quyền chọn ở mốc 200, không biến pickup ở lượt 190 thành nhân vật thứ hai trong cùng kỳ, không bảo đảm kỳ vọng 2 trừ khi pickup đầu xuất hiện trong 40 lượt đầu — và càng không biến kỳ vọng 1 thành một kế hoạch ổn định trong một kỳ.
 
-- Bốn vé 10 lượt làm cơ chế mới bớt khắc nghiệt hơn phép tính 200 lượt ban đầu.
-- Chúng nâng tổng số lượt tiềm năng từ 200 lên 240 với ngân sách 200 lần đá.
-- Chúng giúp người chơi có thêm cơ hội tự nhiên và mở rộng vùng có thể chạm pity thứ hai.
-- Nhưng chúng không khôi phục quyền chọn ở mốc 200.
-- Chúng không biến pickup ở lượt 190 thành nhân vật thứ hai trong cùng kỳ.
-- Chúng không bảo đảm kỳ vọng 2 trừ khi pickup đầu xuất hiện trong 40 lượt đầu.
-- Chúng càng không biến kỳ vọng 1 thành một kế hoạch ổn định trong một kỳ.
-
-Đối với người chơi chỉ săn một nhân vật, cơ chế mới là một cải tiến.
-
-Đối với người chơi tích 24.000 Pyroxene để tận dụng một đợt banner đôi hoặc banner ba, cơ chế cũ vẫn có giá trị chiến lược cao hơn — **về quyền quyết định**, dù xác suất thuần túy ở cùng lượng đá lại nghiêng nhẹ về hệ mới.
+Đối với người chơi chỉ săn một nhân vật, cơ chế mới là một cải tiến. Đối với người chơi tích 24.000 Pyroxene để tận dụng một đợt banner đôi hoặc banner ba, cơ chế cũ vẫn có giá trị chiến lược cao hơn — về quyền quyết định, dù xác suất thuần túy ở cùng lượng đá lại nghiêng nhẹ về hệ mới.
 
 Và còn một điều.
 
