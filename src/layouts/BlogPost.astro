@@ -13,46 +13,81 @@ type Props = CollectionEntry<'blog'>['data'];
 const { title, description, pubDate, updatedDate, heroImage, tags } = Astro.props;
 ---
 
-<html lang="en">
+<html lang="vi">
 	<head>
 		<BaseHead title={title} description={description} />
 		<style>
-			main {
-				width: calc(100% - 2em);
-				max-width: 100%;
-				margin: 0;
+			.article {
+				max-width: var(--reading);
+				margin-inline: auto;
+				padding-block: clamp(3.5rem, 8vw, 6rem);
+			}
+			.article-nav {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				flex-wrap: wrap;
+				gap: 0.35rem 1.25rem;
+				margin-bottom: 2rem;
+				font-family: var(--mono);
+				font-size: 0.75rem;
+				line-height: 1.4;
+				letter-spacing: 0.08em;
+			}
+			.article-nav a {
+				text-decoration: none;
+			}
+			.article-nav .article-date {
+				color: var(--muted);
+			}
+			.article-header {
+				padding-bottom: 2rem;
+				border-bottom: 1px solid var(--line);
+			}
+			.article-header h1 {
+				margin: 0.65rem 0 0;
+			}
+			.article-description {
+				max-width: 38rem;
+				margin: 1rem 0 0;
+				color: var(--muted);
+				font-size: 1.1rem;
+			}
+			.article-header .tag-list {
+				margin-top: 1.5rem;
 			}
 			.hero-image {
-				width: 100%;
+				margin-top: 2rem;
 			}
 			.hero-image img {
 				display: block;
-				margin: 0 auto;
-				border-radius: 12px;
-				box-shadow: var(--box-shadow);
+				width: 100%;
+				border-radius: var(--radius-card);
+				box-shadow: var(--shadow-lift);
 			}
 			.prose {
-				width: 720px;
-				max-width: calc(100% - 2em);
-				margin: auto;
-				padding: 1em;
-				color: rgb(var(--gray-dark));
+				color: var(--prose);
 			}
-			.title {
-				margin-bottom: 1em;
-				padding: 1em 0;
-				text-align: center;
-				line-height: 1;
+			.prose h2,
+			.prose h3 {
+				line-height: 1.25;
 			}
-			.title h1 {
-				margin: 0 0 0.5em 0;
+			.prose h2 {
+				margin-top: 3.25rem;
 			}
-			.date {
-				margin-bottom: 0.5em;
-				color: rgb(var(--gray));
+			.prose h3 {
+				margin-top: 2.25rem;
+			}
+			.prose li + li {
+				margin-top: 0.45rem;
+			}
+			.prose a,
+			.prose code {
+				overflow-wrap: anywhere;
 			}
 			.last-updated-on {
 				font-style: italic;
+				color: var(--muted);
 			}
 		</style>
 	</head>
@@ -60,26 +95,36 @@ const { title, description, pubDate, updatedDate, heroImage, tags } = Astro.prop
 	<body>
 		<Header />
 		<main>
-			<article>
-				<div class="hero-image">
-					{heroImage && <Image width={1020} height={510} src={heroImage} alt="" />}
+			<article class="article">
+				<div class="article-nav">
+					<a href="/blog">← Tất cả bài viết</a>
+					<span class="article-date">
+						<FormattedDate date={pubDate} />
+					</span>
 				</div>
-				<div class="prose">
-					<div class="title">
-						<div class="date">
-							<FormattedDate date={pubDate} />
-							{updatedDate && (
-								<div class="last-updated-on">
-									Last updated on <FormattedDate date={updatedDate} />
-								</div>
-							)}
-						</div>
-						<h1>{title}</h1>
-						{tags && tags.length > 0 && (
-							<p>{tags.map((tag) => <span>#{tag} </span>)}</p>
-						)}
-						<hr />
+				<div class="article-header">
+					<p class="eyebrow">blog.dh6k.vip</p>
+					<h1>{title}</h1>
+					{description && <p class="article-description">{description}</p>}
+					{updatedDate && (
+						<p class="last-updated-on">
+							Cập nhật lần cuối <FormattedDate date={updatedDate} />
+						</p>
+					)}
+					{tags && tags.length > 0 && (
+						<ul class="tag-list">
+							{tags.map((tag) => (
+								<li>#{tag}</li>
+							))}
+						</ul>
+					)}
+				</div>
+				{heroImage && (
+					<div class="hero-image">
+						<Image width={1020} height={510} src={heroImage} alt="" />
 					</div>
+				)}
+				<div class="prose">
 					<slot />
 					<Newsletter />
 					<Comments />

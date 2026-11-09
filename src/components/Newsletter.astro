@@ -3,11 +3,58 @@
 // when the account is created. No JS needed, plain form POST.
 const username = import.meta.env.PUBLIC_BUTTONDOWN_USERNAME || 'dh6k';
 ---
-<section>
-	<h3>Nhận bài mới qua email</h3>
+<section class="newsletter">
+	<h3>Nhận bài mới <span class="hand">qua email</span></h3>
 	<form action={`https://buttondown.com/api/emails/embed-subscribe/${username}`} method="post">
 		<input type="email" name="email" placeholder="Email của bạn" required />
-		<button type="submit">Đăng ký</button>
+		<button class="button" type="submit">Đăng ký</button>
 	</form>
 	<p><small>Qua Buttondown. Không spam, hủy lúc nào cũng được.</small></p>
 </section>
+<style>
+	.newsletter {
+		margin-top: clamp(3rem, 7vw, 5rem);
+		padding: clamp(1.5rem, 4vw, 2.5rem);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-card);
+		background: var(--surface);
+	}
+	.newsletter h3 {
+		margin: 0 0 1.25rem;
+		font-size: clamp(1.3rem, 1.8vw, 1.5rem);
+	}
+	.newsletter h3 .hand {
+		font-size: 1.2em;
+	}
+	.newsletter form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.8rem;
+	}
+	.newsletter input {
+		flex: 1 1 16rem;
+		min-height: 2.75rem;
+		padding: 0.55rem 1.2rem;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-pill);
+		background: var(--bg);
+		color: var(--ink);
+		font-family: var(--font-body);
+	}
+	.newsletter input::placeholder {
+		color: var(--muted);
+	}
+	.newsletter p {
+		margin: 1rem 0 0;
+		color: var(--muted);
+	}
+	@media (max-width: 40rem) {
+		.newsletter form {
+			flex-direction: column;
+			align-items: stretch;
+		}
+		.newsletter .button {
+			justify-content: center;
+		}
+	}
+</style>

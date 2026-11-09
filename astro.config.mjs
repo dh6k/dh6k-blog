@@ -11,21 +11,85 @@ export default defineConfig({
 	fonts: [
 		{
 			provider: fontProviders.local(),
-			name: 'Atkinson',
-			cssVariable: '--font-atkinson',
-			fallbacks: ['sans-serif'],
+			name: 'Major Mono Display',
+			cssVariable: '--font-mono-display',
+			fallbacks: ['ui-monospace', 'monospace'],
 			options: {
 				variants: [
 					{
-						src: ['./src/assets/fonts/atkinson-regular.woff'],
+						src: ['./src/assets/fonts/major-mono-display-400-normal.woff2'],
+						weight: 400,
+						style: 'normal',
+						display: 'swap',
+					},
+				],
+			},
+		},
+		{
+			provider: fontProviders.local(),
+			name: 'Beth Ellen',
+			cssVariable: '--font-hand',
+			fallbacks: ['cursive'],
+			options: {
+				variants: [
+					{
+						src: ['./src/assets/fonts/beth-ellen-400-normal.woff2'],
+						weight: 400,
+						style: 'normal',
+						display: 'swap',
+					},
+				],
+			},
+		},
+		{
+			provider: fontProviders.local(),
+			name: 'Lexend',
+			cssVariable: '--font-display',
+			fallbacks: ['system-ui', 'sans-serif'],
+			options: {
+				variants: [
+					{
+						src: ['./src/assets/fonts/lexend-400-normal.woff2'],
+						weight: '400 600',
+						style: 'normal',
+						display: 'swap',
+					},
+				],
+			},
+		},
+		{
+			provider: fontProviders.local(),
+			name: 'Maven Pro',
+			cssVariable: '--font-head',
+			fallbacks: ['system-ui', 'sans-serif'],
+			options: {
+				variants: [
+					{
+						src: ['./src/assets/fonts/maven-pro-500-normal.woff2'],
+						weight: '500 700',
+						style: 'normal',
+						display: 'swap',
+					},
+				],
+			},
+		},
+		{
+			provider: fontProviders.local(),
+			name: 'Asap',
+			cssVariable: '--font-body',
+			fallbacks: ['system-ui', 'sans-serif'],
+			options: {
+				variants: [
+					{
+						src: ['./src/assets/fonts/asap-400-normal.woff2'],
 						weight: 400,
 						style: 'normal',
 						display: 'swap',
 					},
 					{
-						src: ['./src/assets/fonts/atkinson-bold.woff'],
-						weight: 700,
-						style: 'normal',
+						src: ['./src/assets/fonts/asap-400-italic.woff2'],
+						weight: 400,
+						style: 'italic',
 						display: 'swap',
 					},
 				],
