@@ -6,7 +6,7 @@ updatedDate: 2026-11-09
 heroImage: "../../assets/blog/blue-archive-new-gacha-mechanics-personal-thoughts-cover.jpg"
 tags: ["Gacha Games"]
 ---
-> **Cập nhật 09/11/2026.** Bài đăng ngày 26/07, viết lại theo 11 slide thuyết trình tiếng Hàn về cải tổ hệ thống chiêu mộ (server Global từ 10/11/2026), đối chiếu qua space [Blue Archive - Hệ Gacha Mới](https://muse.ai/s/blue-archive-he-gacha-moi-xqxb6z3xhoxrr62/OgIhNFlZmOPnJJn_FZusbqR2A0_FRLLQ2KTqjYpQhYI). Những chỗ sửa chính: mốc áp dụng Global thay vì mốc Nhật, tên gọi Stack/Mileage, giá thật của một lần bảo đảm, luật reset khi ra 3★ lệch, và kết luận về săn 2 pickup tính lại theo lượng đá.
+> **Cập nhật 09/11/2026.** Bài đăng ngày 26/07, viết lại theo 11 slide thuyết trình tiếng Hàn về cải tổ hệ thống chiêu mộ (server Global từ 10/11/2026), đối chiếu qua space [Blue Archive - Hệ Gacha Mới](https://muse.ai/s/blue-archive-he-gacha-moi-xqxb6z3xhoxrr62/OgIhNFlZmOPnJJn_FZusbqR2A0_FRLLQ2KTqjYpQhYI). Những chỗ sửa chính: mốc áp dụng Global thay vì mốc Nhật, tên gọi Stack/Mileage, giá thật của một lần bảo đảm, luật reset khi ra 3★ lệch, và kết luận về săn 2 pickup tính lại theo lượng đá. Cập nhật thêm cùng ngày: thay ảnh tổng kết cuối bài bằng bản mới dùng đúng thuật ngữ Stack/Mileage, và cập nhật chi tiết chế độ Virtual Aptitude Test.
 
 Ý tưởng: tôi
 
@@ -288,7 +288,7 @@ Cơ chế gacha không tồn tại trong chân không. Giá trị của nó ph�
 
 Một đội hình tiêu chuẩn của *Blue Archive* gồm bốn STRIKER và hai SPECIAL. Các nội dung endgame như Total Assault, Grand Assault và Final Restriction Release đã khuyến khích hoặc trực tiếp yêu cầu người chơi duy trì nhiều đội hình, nhiều vai trò và nhiều lớp nâng cấp khác nhau.
 
-Chế độ **Virtual Aptitude Test** mới được công bố cho phép triển khai tối đa năm đội và trao nguyên liệu cho hệ thống nâng cấp **Deep Thought Blossom**. Hiện chưa đủ thông tin để khẳng định người chơi bắt buộc phải dùng đủ năm đội ở mọi mức thưởng, hoặc toàn bộ 30 vị trí phải là 30 học sinh không trùng nhau.
+Chế độ **Virtual Aptitude Test** dùng tối đa năm đội, mỗi đội 6 học sinh chính + 2 học sinh hỗ trợ (kỹ năng hỗ trợ tự kích hoạt) — tổng cộng tối đa 40 vị trí, và hướng dẫn cộng đồng ghi rõ cần chuẩn bị 40 học sinh, rào cản lớn nhất với người mới. Mỗi màn kéo dài 3–15 wave, hai loại phòng thủ của địch xen kẽ nhau, người chơi đổi đội giữa trận theo loại phòng thủ đang đối mặt. Càng nhiều học sinh cùng loại tấn công trong một đội, buff càng mạnh — đội 7 người cùng loại cho buff mạnh nhất. Ở độ khó cao, một số màn chỉ có đòn khắc hệ mới gây gấp đôi sát thương, các đòn khác giảm còn 10–30%. Cơ chế **Limit Break** nạp theo số hit lên địch (mỗi 20 hit ở màn C) và cho dùng kỹ năng với cost 0 trong một khoảng thời gian; nút **Return** gom các học sinh đang tản ra về một chỗ. Chế độ tốn AP, mỗi màn có gimmick riêng như Event Challenge, và có tính năng chỉnh cấp kỹ năng cho học sinh chưa nâng. Phần thưởng gồm nguyên liệu cho hệ thống tăng chỉ số mới **Deep Thought Blossom** (một số nguồn cộng đồng gọi là Imagination Bloom) và một Coin Shop đổi đồ cơ bản như Activity Report — hướng dẫn cộng đồng khuyên ưu tiên shop này hơn Bounty Hunt xét trên AP tiêu tốn. Không có hệ thống xếp hạng; mùa beta hiện tại được đánh giá là dễ, tới mức Torment cũng auto được.
 
 Tuy vậy, hướng thiết kế đã khá rõ:
 
@@ -306,7 +306,7 @@ Phần thưởng xếp hạng Total Assault hiện vẫn ở mức 1.200 Pyroxen
 
 ### [Suy luận] Vòng lặp đối với người chơi mới
 
-Nếu các mốc thưởng cao của nội dung mới thực sự yêu cầu nhiều đội độc lập, người chơi mới có thể rơi vào vòng lặp sau:
+Chế độ mới yêu cầu tối đa 40 học sinh cho 5 đội đầy đủ, nên người chơi mới có thể rơi vào vòng lặp sau:
 
 ```
 Roster hẹp
@@ -390,5 +390,6 @@ Con số 200 vẫn ở đó, sáng bóng như trước. Chỉ là chiếc chìa 
 - Dengeki Online: nội dung Recruitment Mileage Rewards và tám vé 10 lượt (dengekionline.com)
 - AUTOMATON: 40 lượt thưởng trước mốc 200 và phản ứng về cơ chế mới (automaton-media.com)
 - AppMedia: thông tin ban đầu về Virtual Aptitude Test và tối đa năm đội (appmedia.jp)
+- Vortex Gaming: hướng dẫn chi tiết Virtual Aptitude Test — 5 đội, 40 học sinh, Limit Break, Coin Shop (31/10/2026): https://vortexgaming.io/en/postdetail/1319226
 
 Lưu ý: các số liệu xác suất là giá trị tính theo đúng điều kiện đã nêu trong từng ví dụ (tỉ lệ pickup 0,7%/lần, bắt đầu từ 0, vé dùng nối tiếp và ưu tiên trước đá) và không đảm bảo kết quả chiêu mộ của từng người chơi.
