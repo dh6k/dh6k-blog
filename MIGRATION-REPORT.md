@@ -57,6 +57,13 @@ Date: 2026-11-09 02:21 +07. Source: `https://hn.dh6k.vip` (publication `61ed6370
 - Homepage: hero (eyebrow `blog.dh6k.vip`, mono title, SITE_DESCRIPTION lede) + featured latest post with cover + remaining posts as gh-style row list (title + mono date). `/blog` same row list. Post page: article nav (← all posts + date), eyebrow, Lexend title, description, tag pills, hero image, prose `#cbc7ce`; Newsletter restyled as surface card with pill input + pink handwritten button; Giscus theme `transparent_dark`.
 - `src/pages/about.astro` still has template lorem ipsum content — style is synced (renders through BlogPost layout) but the text itself was not rewritten.
 
+## Cross-links + About draft — DONE 2026-11-09 10:05
+- Direction is one-way, as the user clarified: from dh6k.vip and gh.dh6k.vip into the blog (the blog footer already linked out to both).
+- `dh6k/dh6k.github.io` (gh.dh6k.vip, Jekyll, commit `199af23`): "Blog" link added to the shared nav in `_layouts/default.html` (all pages, both languages); `dh6k's blog` added as the first row in Writing on `/`, `/en/` and `/vi/`.
+- `dh6k/dh6kdotvip` (dh6k.vip, commit `3497c73`): `blog.dh6k.vip` added to the contact list in `index.html` (after the GitHub row).
+- About draft: `src/pages/about.astro` rewritten from dh6k.vip content (commit `902aff2`, deploy READY) — intro (he/him, born Aug 20, games/code/curiosity), games shaping taste (ADOFAI / Blue Archive / Uma Musume), tech journey (Android since 2013, tinkering since 2019, VoltageOS/Derpfest, Windows XP→7→10/11, Arch late 2021–mid 2022), premium-services philosophy, links to dh6k.vip / gh.dh6k.vip / GitHub / X / Telegram / email. No hero image (template placeholder removed rather than publish a stock image). pubDate 2026-11-09. Text is a draft for the user to adjust.
+- Verified live 10:05: blog About HTTP 200 with draft text, Vercel deploy `902aff2` READY; gh.dh6k.vip and dh6k.vip both HTTP 200 and contain `blog.dh6k.vip`.
+
 ## How to run locally
 ```bash
 cd ~/workspace/hashnode-astro-export
