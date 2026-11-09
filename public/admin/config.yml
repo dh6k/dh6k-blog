@@ -3,11 +3,11 @@
 # Chỉ 2 file tĩnh: public/admin/index.html + file này. Không server, không
 # database, không đổi output của Astro. Bài vẫn là file .md trong Git.
 #
-# Đăng nhập: "Sign in with Token" — fine-grained PAT của GitHub, chỉ repo
-# dh6k/dh6k-blog, quyền Contents: Read and write (Metadata: Read tự kèm).
-# Token chỉ nằm trong localStorage trình duyệt của m, không có trong repo.
-# Muốn chuyển sang nút "Sign in with GitHub" (OAuth) sau này thì deploy
-# Sveltia CMS Authenticator rồi thêm base_url vào backend bên dưới.
+# Đăng nhập: nút "Sign in with GitHub" (OAuth qua Worker
+# sveltia-cms-auth), dự phòng bằng "Sign in with Token" — fine-grained
+# PAT của GitHub, chỉ repo dh6k/dh6k-blog, quyền Contents: Read and
+# write (Metadata: Read tự kèm). Token chỉ nằm trong localStorage
+# trình duyệt của m, không có trong repo.
 #
 # QUAN TRỌNG: field bên dưới phải khớp 1-1 với schema trong
 # src/content.config.ts. Đổi một bên thì đổi cả hai, không thì build gãy.
@@ -18,10 +18,10 @@ backend:
   branch: main
   # Repo public nên chỉ cần scope hẹp này, không cần scope repo đầy đủ.
   auth_scope: public_repo
-  # Sign-in bằng GitHub (OAuth) qua Worker sveltia-cms-auth. Chỉ có tác
-  # dụng khi Worker đã có GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET và
-  # ALLOWED_DOMAINS=blog.dh6k.vip. Chưa set xong thì đăng nhập bằng token
-  # vẫn dùng được (nút mũi tên cạnh Sign In).
+  # Sign-in bằng GitHub (OAuth) qua Worker sveltia-cms-auth.
+  # Worker đã có GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET và
+  # ALLOWED_DOMAINS=blog.dh6k.vip. Đăng nhập bằng token vẫn dùng
+  # được (nút mũi tên cạnh Sign In).
   base_url: https://sveltia-cms-auth.1b1a6.workers.dev
 
 # Bài mới commit thẳng lên main, Vercel tự deploy lại. Không dùng
@@ -30,6 +30,14 @@ publish_mode: simple
 
 site_url: https://blog.dh6k.vip
 display_url: https://blog.dh6k.vip
+
+# Sveltia bắt buộc phải có media_folder ở cấp global — chỉ khai ở cấp
+# collection thì nó vẫn báo "The media folder is not defined". Giá trị
+# global là đường dẫn từ gốc repo; collection blog bên dưới override
+# lại bằng đường dẫn tương đối từ thư mục bài viết, cả hai đều trỏ
+# tới cùng một chỗ: src/assets/blog.
+media_folder: src/assets/blog
+public_folder: ../../assets/blog
 
 # Bỏ field optional đang trống thì đừng ghi nó ra frontmatter: ghi
 # updatedDate: "" hay heroImage: "" sẽ làm Astro build gãy (z.coerce.date
